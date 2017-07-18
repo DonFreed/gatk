@@ -43,18 +43,11 @@ public final class OxoGReadCountsUnitTest {
 
     @Test
     public void testDescriptions() {
-        Assert.assertEquals(new OxoGReadCounts().getKeyNames(), Arrays.asList(GATKVCFConstants.OXOG_ALT_F1R2_KEY,
-                GATKVCFConstants.OXOG_ALT_F2R1_KEY,
-                GATKVCFConstants.OXOG_REF_F1R2_KEY,
-                GATKVCFConstants.OXOG_REF_F2R1_KEY,
-                GATKVCFConstants.OXOG_FRACTION_KEY), "annots");
+        Assert.assertEquals(new OxoGReadCounts().getKeyNames(), Arrays.asList(GATKVCFConstants.OXOG_ALT_F1R2_KEY, GATKVCFConstants.OXOG_ALT_F2R1_KEY));
         Assert.assertEquals(new OxoGReadCounts().getDescriptions(),
                 Arrays.asList(
                         GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F1R2_KEY),
-                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F2R1_KEY),
-                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_REF_F1R2_KEY),
-                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_REF_F2R1_KEY),
-                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_FRACTION_KEY))
+                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F2R1_KEY))
         );
     }
 
@@ -106,17 +99,6 @@ public final class OxoGReadCountsUnitTest {
 
         final int actual_alt_F2R1 = (int) gb.make().getExtendedAttribute(GATKVCFConstants.OXOG_ALT_F2R1_KEY);
         Assert.assertEquals(actual_alt_F2R1, alt_F2R1, GATKVCFConstants.OXOG_ALT_F2R1_KEY);
-
-        final int actual_ref_F2R1 = (int) gb.make().getExtendedAttribute(GATKVCFConstants.OXOG_REF_F2R1_KEY);
-        Assert.assertEquals(actual_ref_F2R1, ref_F2R1, GATKVCFConstants.OXOG_REF_F2R1_KEY);
-
-        final int actual_ref_F1R2 = (int) gb.make().getExtendedAttribute(GATKVCFConstants.OXOG_REF_F1R2_KEY);
-        Assert.assertEquals(actual_ref_F1R2, ref_F1R2, GATKVCFConstants.OXOG_REF_F1R2_KEY);
-
-        final double actual_fraction = (double) gb.make().getExtendedAttribute(GATKVCFConstants.OXOG_FRACTION_KEY);
-        final double num = refAllele.equals(refA) || refAllele.equals(refC) ? alt_F2R1 : alt_F1R2;
-        final double expectedFraction = num / (alt_F1R2 + alt_F2R1);
-        Assert.assertEquals(actual_fraction, expectedFraction, GATKVCFConstants.OXOG_FRACTION_KEY);
 
         //now test a no-op
         final GenotypeBuilder gb1 = new GenotypeBuilder(g);

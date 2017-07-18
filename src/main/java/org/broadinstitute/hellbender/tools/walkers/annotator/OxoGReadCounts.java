@@ -40,20 +40,14 @@ public final class OxoGReadCounts extends GenotypeAnnotation {
     @Override
     public List<String> getKeyNames() {
         return Arrays.asList(GATKVCFConstants.OXOG_ALT_F1R2_KEY,
-                             GATKVCFConstants.OXOG_ALT_F2R1_KEY,
-                             GATKVCFConstants.OXOG_REF_F1R2_KEY,
-                             GATKVCFConstants.OXOG_REF_F2R1_KEY,
-                             GATKVCFConstants.OXOG_FRACTION_KEY);
+                             GATKVCFConstants.OXOG_ALT_F2R1_KEY);
     }
 
     @Override
     public List<VCFFormatHeaderLine> getDescriptions() {
         return Arrays.asList(
                 GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F1R2_KEY),
-                GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F2R1_KEY),
-                GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_REF_F1R2_KEY),
-                GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_REF_F2R1_KEY),
-                GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_FRACTION_KEY));
+                GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F2R1_KEY));
     }
 
     @Override
@@ -74,20 +68,12 @@ public final class OxoGReadCounts extends GenotypeAnnotation {
 
         int alt_F1R2 = 0;
         int alt_F2R1 = 0;
-        int ref_F1R2 = 0;
-        int ref_F2R1 = 0;
 
         for (final ReadLikelihoods<Allele>.BestAllele bestAllele : likelihoods.bestAlleles(g.getSampleName())) {
             final GATKRead read = bestAllele.read;
             if (bestAllele.isInformative() && isUsableRead(read) && read.isPaired()) {
                 final Allele allele = bestAllele.allele;
-                if (allele.equals(ref, true)) {
-                    if (read.isReverseStrand() == read.isFirstOfPair()) {
-                        ref_F2R1++;
-                    } else {
-                        ref_F1R2++;
-                    }
-                } else if (allele.equals(alt, true)) {
+                if (allele.equals(alt, true)) {
                     if (read.isReverseStrand() == read.isFirstOfPair()) {
                         alt_F2R1++;
                     } else {
@@ -97,20 +83,8 @@ public final class OxoGReadCounts extends GenotypeAnnotation {
             }
         }
 
-        final double numerator;
-        if (ref.equals(REF_C) || ref.equals(REF_A)) {
-            numerator = alt_F2R1;
-        } else {
-            numerator = alt_F1R2;
-        }
-        final double denominator =  alt_F1R2 + alt_F2R1;
-        final double fraction = numerator/denominator;
-
         gb.attribute(GATKVCFConstants.OXOG_ALT_F1R2_KEY, alt_F1R2);
         gb.attribute(GATKVCFConstants.OXOG_ALT_F2R1_KEY, alt_F2R1);
-        gb.attribute(GATKVCFConstants.OXOG_REF_F1R2_KEY, ref_F1R2);
-        gb.attribute(GATKVCFConstants.OXOG_REF_F2R1_KEY, ref_F2R1);
-        gb.attribute(GATKVCFConstants.OXOG_FRACTION_KEY, fraction);
     }
 
     protected static boolean isUsableRead(final GATKRead read) {
