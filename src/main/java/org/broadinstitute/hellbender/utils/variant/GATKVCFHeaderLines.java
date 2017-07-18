@@ -57,7 +57,6 @@ public class GATKVCFHeaderLines {
         addFilterLine(new VCFFilterHeaderLine(ARTIFACT_IN_NORMAL_FILTER_NAME, "artifact_in_normal"));
         addFilterLine(new VCFFilterHeaderLine(MEDIAN_BASE_QUALITY_DIFFERENCE_FILTER_NAME, "ref - alt median base quality"));
         addFilterLine(new VCFFilterHeaderLine(MEDIAN_MAPPING_QUALITY_DIFFERENCE_FILTER_NAME, "ref - alt median mapping quality"));
-        addFilterLine(new VCFFilterHeaderLine(MEDIAN_CLIPPING_DIFFERENCE_FILTER_NAME, "ref - alt median clipping"));
         addFilterLine(new VCFFilterHeaderLine(MEDIAN_FRAGMENT_LENGTH_DIFFERENCE_FILTER_NAME, "abs(ref - alt) median fragment length"));
         addFilterLine(new VCFFilterHeaderLine(READ_POSITION_FILTER_NAME, "median distance of alt variants from end of reads"));
         addFilterLine(new VCFFilterHeaderLine(CONTAMINATION_FILTER_NAME, "contamination"));

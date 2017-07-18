@@ -85,13 +85,6 @@ public class Mutect2FilteringEngine {
         }
     }
 
-    private void applyMedianClippingDifferenceFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters) {
-        final int[] clippingCountsByAllele = getIntArrayTumorField(vc, ClippedBases.KEY);
-        if (clippingCountsByAllele != null && clippingCountsByAllele[1] - clippingCountsByAllele[0] > MTFAC.maxMedianClippingDifference) {
-            filters.add(GATKVCFConstants.MEDIAN_CLIPPING_DIFFERENCE_FILTER_NAME);
-        }
-    }
-
     private void applyMedianFragmentLengthDifferenceFilter(final M2FiltersArgumentCollection MTFAC, final VariantContext vc, final Collection<String> filters) {
         final int[] fragmentLengthByAllele = getIntArrayTumorField(vc, FragmentLength.KEY);
         if (fragmentLengthByAllele != null && Math.abs(fragmentLengthByAllele[1] - fragmentLengthByAllele[0]) > MTFAC.maxMedianFragmentLengthDifference) {
@@ -222,7 +215,6 @@ public class Mutect2FilteringEngine {
         applyContaminationFilter(MTFAC, vc, filters);
         applyMedianBaseQualityDifferenceFilter(MTFAC, vc, filters);
         applyMedianMappingQualityDifferenceFilter(MTFAC, vc, filters);
-        applyMedianClippingDifferenceFilter(MTFAC, vc, filters);
         applyMedianFragmentLengthDifferenceFilter(MTFAC, vc, filters);
         applyReadPositionFilter(MTFAC, vc, filters);
 
