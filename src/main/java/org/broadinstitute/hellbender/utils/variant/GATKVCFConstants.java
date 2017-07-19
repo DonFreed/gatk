@@ -94,8 +94,8 @@ public final class GATKVCFConstants {
     public static final String TRANSMISSION_DISEQUILIBRIUM_KEY =    "TDT";
     public static final String VARIANT_TYPE_KEY =                   "VariantType";
     public static final String VQS_LOD_KEY =                        "VQSLOD";
-    public static final String OXOG_ALT_F1R2_KEY =                  "ALT_F1R2";
-    public static final String OXOG_ALT_F2R1_KEY =                  "ALT_F2R1";
+    public static final String F1R2_KEY =                           "F1R2";
+    public static final String F2R1_KEY =                           "F2R1";
 
     // Mutect2-specific INFO keys
     public static final String TUMOR_LOD_KEY =                      "TLOD";

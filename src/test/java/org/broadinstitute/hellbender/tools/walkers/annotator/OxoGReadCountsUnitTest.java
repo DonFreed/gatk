@@ -1,12 +1,11 @@
 package org.broadinstitute.hellbender.tools.walkers.annotator;
 
-import com.google.common.collect.ImmutableMap;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.TextCigarCodec;
 import htsjdk.variant.variantcontext.*;
-import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.broadinstitute.hellbender.tools.exome.orientationbiasvariantfilter.OrientationBiasUtils;
 import org.broadinstitute.hellbender.utils.QualityUtils;
 import org.broadinstitute.hellbender.utils.genotyper.*;
 import org.broadinstitute.hellbender.utils.read.ArtificialReadUtils;
@@ -20,7 +19,6 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -43,11 +41,11 @@ public final class OxoGReadCountsUnitTest {
 
     @Test
     public void testDescriptions() {
-        Assert.assertEquals(new OxoGReadCounts().getKeyNames(), Arrays.asList(GATKVCFConstants.OXOG_ALT_F1R2_KEY, GATKVCFConstants.OXOG_ALT_F2R1_KEY));
+        Assert.assertEquals(new OxoGReadCounts().getKeyNames(), Arrays.asList(GATKVCFConstants.F1R2_KEY, GATKVCFConstants.F2R1_KEY));
         Assert.assertEquals(new OxoGReadCounts().getDescriptions(),
                 Arrays.asList(
-                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F1R2_KEY),
-                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.OXOG_ALT_F2R1_KEY))
+                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.F1R2_KEY),
+                        GATKVCFHeaderLines.getFormatLine(GATKVCFConstants.F2R1_KEY))
         );
     }
 
@@ -94,11 +92,11 @@ public final class OxoGReadCountsUnitTest {
         final ReadLikelihoods<Allele> likelihoods = pair.getRight();
         final GenotypeBuilder gb = new GenotypeBuilder(g);
         new OxoGReadCounts().annotate(null, vc, g, gb, likelihoods);
-        final int actual_alt_F1R2 = (int) gb.make().getExtendedAttribute(GATKVCFConstants.OXOG_ALT_F1R2_KEY);
-        Assert.assertEquals(actual_alt_F1R2, alt_F1R2, GATKVCFConstants.OXOG_ALT_F1R2_KEY);
+        final int actual_alt_F1R2 = OrientationBiasUtils.getF1R2(gb.make())[0];
+        Assert.assertEquals(actual_alt_F1R2, alt_F1R2, GATKVCFConstants.F1R2_KEY);
 
-        final int actual_alt_F2R1 = (int) gb.make().getExtendedAttribute(GATKVCFConstants.OXOG_ALT_F2R1_KEY);
-        Assert.assertEquals(actual_alt_F2R1, alt_F2R1, GATKVCFConstants.OXOG_ALT_F2R1_KEY);
+        final int actual_alt_F2R1 = OrientationBiasUtils.getF2R1(gb.make())[0];
+        Assert.assertEquals(actual_alt_F2R1, alt_F2R1, GATKVCFConstants.F2R1_KEY);
 
         //now test a no-op
         final GenotypeBuilder gb1 = new GenotypeBuilder(g);
@@ -135,4 +133,5 @@ public final class OxoGReadCountsUnitTest {
         }
         return read;
     }
+
 }
