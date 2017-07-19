@@ -100,14 +100,6 @@ public class Mutect2FilteringEngine {
                 filters.add(GATKVCFConstants.READ_POSITION_FILTER_NAME);
             }
         }
-
-        //TODO: redundant!!!!
-        // since read position is measured relative to the reference, this can unfairly penalize long indels
-        // thus we add the insertion length
-        final int insertionSize =  Math.max(vc.getAltAlleleWithHighestAlleleCount().getBases().length - vc.getReference().getBases().length, 0);
-        if (insertionSize + vc.getAttributeAsInt(ReadPosition.KEY, 100) < MTFAC.minMedianReadPosition) {
-            filters.add(GATKVCFConstants.READ_POSITION_FILTER_NAME);
-        }
     }
 
 
