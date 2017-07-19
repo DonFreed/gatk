@@ -141,9 +141,8 @@ public final class GATKVCFConstants {
     public static final String STRAND_ARTIFACT_FILTER_NAME =                  "strand_artifact"; // M2
     public static final String DUPLICATED_EVIDENCE_FILTER_NAME =              "duplicate_evidence";
     public final static String ARTIFACT_IN_NORMAL_FILTER_NAME =                "artifact_in_normal";
-    public final static String MEDIAN_BASE_QUALITY_DIFFERENCE_FILTER_NAME =     "base_quality";
-    public final static String MEDIAN_MAPPING_QUALITY_DIFFERENCE_FILTER_NAME = "mapping_quality";
-    public final static String MEDIAN_CLIPPING_DIFFERENCE_FILTER_NAME =         "clipping";
+    public final static String MEDIAN_BASE_QUALITY_FILTER_NAME =                "base_quality";
+    public final static String MEDIAN_MAPPING_QUALITY_FILTER_NAME =             "mapping_quality";
     public final static String MEDIAN_FRAGMENT_LENGTH_DIFFERENCE_FILTER_NAME = "fragment_length";
     public final static String READ_POSITION_FILTER_NAME =                      "read_position";
     public final static String CONTAMINATION_FILTER_NAME =                      "contamination";
@@ -151,8 +150,8 @@ public final class GATKVCFConstants {
     public static final List<String> MUTECT_FILTER_NAMES = Arrays.asList(STR_CONTRACTION_FILTER_NAME,
             PON_FILTER_NAME, CLUSTERED_EVENTS_FILTER_NAME, TUMOR_LOD_FILTER_NAME, GERMLINE_RISK_FILTER_NAME,
             MULTIALLELIC_FILTER_NAME, STRAND_ARTIFACT_FILTER_NAME, ARTIFACT_IN_NORMAL_FILTER_NAME,
-            MEDIAN_BASE_QUALITY_DIFFERENCE_FILTER_NAME, MEDIAN_MAPPING_QUALITY_DIFFERENCE_FILTER_NAME,
-            MEDIAN_CLIPPING_DIFFERENCE_FILTER_NAME, MEDIAN_FRAGMENT_LENGTH_DIFFERENCE_FILTER_NAME,
+            MEDIAN_BASE_QUALITY_FILTER_NAME, MEDIAN_MAPPING_QUALITY_FILTER_NAME,
+            MEDIAN_FRAGMENT_LENGTH_DIFFERENCE_FILTER_NAME,
             READ_POSITION_FILTER_NAME, CONTAMINATION_FILTER_NAME, DUPLICATED_EVIDENCE_FILTER_NAME);
 
     // Symbolic alleles

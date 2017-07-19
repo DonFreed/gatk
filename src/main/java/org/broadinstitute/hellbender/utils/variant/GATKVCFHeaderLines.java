@@ -55,8 +55,8 @@ public class GATKVCFHeaderLines {
         addFilterLine(new VCFFilterHeaderLine(MULTIALLELIC_FILTER_NAME, "Site filtered because too many alt alleles pass tumor LOD"));
         addFilterLine(new VCFFilterHeaderLine(STRAND_ARTIFACT_FILTER_NAME, "Evidence for alt allele comes from one read direction only"));
         addFilterLine(new VCFFilterHeaderLine(ARTIFACT_IN_NORMAL_FILTER_NAME, "artifact_in_normal"));
-        addFilterLine(new VCFFilterHeaderLine(MEDIAN_BASE_QUALITY_DIFFERENCE_FILTER_NAME, "ref - alt median base quality"));
-        addFilterLine(new VCFFilterHeaderLine(MEDIAN_MAPPING_QUALITY_DIFFERENCE_FILTER_NAME, "ref - alt median mapping quality"));
+        addFilterLine(new VCFFilterHeaderLine(MEDIAN_BASE_QUALITY_FILTER_NAME, "alt median base quality"));
+        addFilterLine(new VCFFilterHeaderLine(MEDIAN_MAPPING_QUALITY_FILTER_NAME, "ref - alt median mapping quality"));
         addFilterLine(new VCFFilterHeaderLine(MEDIAN_FRAGMENT_LENGTH_DIFFERENCE_FILTER_NAME, "abs(ref - alt) median fragment length"));
         addFilterLine(new VCFFilterHeaderLine(READ_POSITION_FILTER_NAME, "median distance of alt variants from end of reads"));
         addFilterLine(new VCFFilterHeaderLine(CONTAMINATION_FILTER_NAME, "contamination"));
