@@ -56,7 +56,7 @@ public final class MappingQualityRankSumTestUnitTest {
         final List<GATKRead> refReads = Arrays.stream(refMappingQualities).mapToObj(i -> makeRead(i)).collect(Collectors.toList());
         final List<GATKRead> altReads = Arrays.stream(altMappingQualities).mapToObj(i -> makeRead(i)).collect(Collectors.toList());
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods(sample1, refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods(sample1, refReads, altReads, -100.0, -100.0, REF, ALT);
         final VariantContext vc = makeVC(REF, ALT);
 
         final Map<String, Object> annotate = ann.annotate(null, vc, likelihoods);
@@ -82,7 +82,7 @@ public final class MappingQualityRankSumTestUnitTest {
         final List<GATKRead> refReads = Arrays.stream(refMappingQualities).mapToObj(i -> makeRead(i)).collect(Collectors.toList());
         final List<GATKRead> altReads = Arrays.stream(altMappingQualities).mapToObj(i -> makeRead(i)).collect(Collectors.toList());
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods(sample1, refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods(sample1, refReads, altReads, -100.0, -100.0, REF, ALT);
 
         final ReferenceContext ref= null;
         final VariantContext vc= makeVC(REF, ALT);

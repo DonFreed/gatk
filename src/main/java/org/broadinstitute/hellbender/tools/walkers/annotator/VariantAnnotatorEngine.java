@@ -8,6 +8,8 @@ import org.broadinstitute.hellbender.engine.FeatureContext;
 import org.broadinstitute.hellbender.engine.FeatureInput;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.exceptions.GATKException;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotation;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotationData;
 import org.broadinstitute.hellbender.utils.ClassUtils;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.genotyper.ReadLikelihoods;
@@ -132,6 +134,64 @@ public final class VariantAnnotatorEngine {
 
         Utils.validate(!descriptions.contains(null), "getVCFAnnotationDescriptions should not contain null. This error is likely due to an incorrect implementation of getDescriptions() in one or more of the annotation classes");
         return descriptions;
+    }
+
+    /**
+     * Combine (raw) data for reducible annotations (those that use raw data in gVCFs)
+     * Mutates annotationMap by removing the annotations that were combined
+     * @param allelesList   the list of merged alleles across all variants being combined
+     * @param annotationMap attributes of merged variant contexts -- is modifying by removing successfully combined annotations
+     * @return  a map containing the keys and raw values for the combined annotations
+     */
+    public Map<String, Object> combineAnnotations(final List<Allele> allelesList, Map<String, List<ReducibleAnnotationData>> annotationMap) {
+        Map<String, Object> combinedAnnotations = new HashMap<>();
+
+        // go through all the requested reducible info annotationTypes
+        for (final InfoFieldAnnotation annotationType : infoAnnotations) {
+            if (annotationType instanceof ReducibleAnnotation) {
+                ReducibleAnnotation currentASannotation = (ReducibleAnnotation) annotationType;
+                if (annotationMap.containsKey(currentASannotation.getRawKeyName())) {
+                    final List<ReducibleAnnotationData> annotationValue = annotationMap.get(currentASannotation.getRawKeyName());
+                    final Map<String, Object> annotationsFromCurrentType = currentASannotation.combineRawData(allelesList, annotationValue);
+                    combinedAnnotations.putAll(annotationsFromCurrentType);
+                    //remove the combined annotations so that the next method only processes the non-reducible ones
+                    annotationMap.remove(currentASannotation.getRawKeyName());
+                }
+            }
+        }
+        return combinedAnnotations;
+    }
+
+    /**
+     * Finalize reducible annotations (those that use raw data in gVCFs)
+     * @param vc    the merged VC with the final set of alleles, possibly subset to the number of maxAltAlleles for genotyping
+     * @param originalVC    the merged but non-subset VC that contains the full list of merged alleles
+     * @return  a VariantContext with the final annotation values for reducible annotations
+     */
+    public VariantContext finalizeAnnotations(VariantContext vc, VariantContext originalVC) {
+        final Map<String, Object> VariantAnnotations = new LinkedHashMap<>(vc.getAttributes());
+
+        // go through all the requested info annotationTypes
+        for (final InfoFieldAnnotation annotationType : infoAnnotations) {
+            if (annotationType instanceof ReducibleAnnotation) {
+
+                ReducibleAnnotation currentASannotation = (ReducibleAnnotation) annotationType;
+
+                final Map<String, Object> annotationsFromCurrentType = currentASannotation.finalizeRawData(vc, originalVC);
+                if (annotationsFromCurrentType != null) {
+                    VariantAnnotations.putAll(annotationsFromCurrentType);
+                }
+                //clean up raw annotation data after annotations are finalized
+                VariantAnnotations.remove(currentASannotation.getRawKeyName());
+            }
+        }
+
+        // generate a new annotated VC
+        final VariantContextBuilder builder = new VariantContextBuilder(vc).attributes(VariantAnnotations);
+
+        // annotate genotypes, creating another new VC in the process
+        final VariantContext annotated = builder.make();
+        return annotated;
     }
 
     /**

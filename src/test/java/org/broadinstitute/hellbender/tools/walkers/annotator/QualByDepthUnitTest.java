@@ -109,7 +109,7 @@ public class QualByDepthUnitTest extends BaseTest {
                 .mapToObj(n -> ArtificialReadUtils.createArtificialRead(TextCigarCodec.decode("10M"))).collect(Collectors.toList());
 
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods(sample1, reads, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods(sample1, reads, -100.0, REF, ALT);
 
         final VariantContext vc = new VariantContextBuilder("test", "20", 10, 10, ALLELES).log10PError(log10PError).genotypes(Arrays.asList(gAC)).make();
         final Map<String, Object> annotatedMap = new QualByDepth().annotate(null, vc, likelihoods);

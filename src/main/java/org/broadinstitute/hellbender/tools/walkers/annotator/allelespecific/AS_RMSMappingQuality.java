@@ -1,9 +1,12 @@
 package org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific;
 
 import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.Genotype;
+import htsjdk.variant.variantcontext.GenotypesContext;
 import htsjdk.variant.variantcontext.VariantContext;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import org.apache.log4j.Logger;
+import org.broadinstitute.hellbender.engine.AlignmentContext;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.tools.walkers.annotator.InfoFieldAnnotation;
 import org.broadinstitute.hellbender.utils.QualityUtils;
@@ -80,6 +83,63 @@ public final class AS_RMSMappingQuality extends InfoFieldAnnotation implements A
         return annotations;
     }
 
+    protected void parseRawDataString(final ReducibleAnnotationData<Number> myData) {
+        final String rawDataString = myData.getRawData();
+        //get per-allele data by splitting on allele delimiter
+        final String[] rawDataPerAllele = rawDataString.split(SPLIT_DELIM);
+        for (int i=0; i<rawDataPerAllele.length; i++) {
+            final String alleleData = rawDataPerAllele[i];
+            myData.putAttribute(myData.getAlleles().get(i), Double.parseDouble(alleleData));
+        }
+    }
+
+    @Override
+    public Map<String, Object> combineRawData(final List<Allele> vcAlleles, final List<? extends ReducibleAnnotationData> annotationList) {
+        //VC already contains merged alleles from ReferenceConfidenceVariantContextMerger
+        ReducibleAnnotationData combinedData = new AlleleSpecificAnnotationData(vcAlleles, null);
+
+        for (final ReducibleAnnotationData currentValue : annotationList) {
+            parseRawDataString(currentValue);
+            combineAttributeMap(currentValue, combinedData);
+
+        }
+        final Map<String, Object> annotations = new HashMap<>();
+        String annotationString = makeRawAnnotationString(vcAlleles, combinedData.getAttributeMap());
+        annotations.put(getRawKeyName(), annotationString);
+        return annotations;
+    }
+
+    public void combineAttributeMap(final ReducibleAnnotationData<Number> toAdd, final ReducibleAnnotationData<Number> combined) {
+        //check that alleles match
+        for (final Allele currentAllele : combined.getAlleles()){
+            //combined is initialized with all alleles, but toAdd might have only a subset
+            if(toAdd.getAttribute(currentAllele) == null)
+                continue;
+            if (toAdd.getAttribute(currentAllele) != null && combined.getAttribute(currentAllele) != null) {
+                combined.putAttribute(currentAllele, (double) combined.getAttribute(currentAllele) + (double) toAdd.getAttribute(currentAllele));
+            }
+            else
+                combined.putAttribute(currentAllele, toAdd.getAttribute(currentAllele));
+        }
+    }
+
+    @Override
+    public Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC) {
+        if (!vc.hasAttribute(getRawKeyName()))
+            return new HashMap<>();
+        final String rawMQdata = vc.getAttributeAsString(getRawKeyName(),null);
+        if (rawMQdata == null)
+            return new HashMap<>();
+
+        final Map<String,Object> annotations = new HashMap<>();
+        final ReducibleAnnotationData myData = new AlleleSpecificAnnotationData<Double>(originalVC.getAlleles(), rawMQdata);
+        parseRawDataString(myData);
+
+        final String annotationString = makeFinalizedAnnotationString(vc, myData.getAttributeMap());
+        annotations.put(getKeyNames().get(0), annotationString);
+        return annotations;
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})//FIXME
     @Override
     public void calculateRawData(final VariantContext vc,
@@ -126,5 +186,44 @@ public final class AS_RMSMappingQuality extends InfoFieldAnnotation implements A
             }
         }
         return annotationString;
+    }
+
+    //this just overrides the RMSAnnotation function that's used for UG -- we don't do allele-specific annotations for UG
+    public String makeFinalizedAnnotationString(final VariantContext vc, final Map<Allele, Number> perAlleleValues) {
+        final Map<Allele, Integer> variantADs = getADcounts(vc);
+        String annotationString = "";
+        for (final Allele current : vc.getAlternateAlleles()) {
+            if (!annotationString.isEmpty())
+                annotationString += ",";
+            if (perAlleleValues.containsKey(current))
+                annotationString += String.format(printFormat, Math.sqrt((double) perAlleleValues.get(current) / variantADs.get(current)));
+            else {
+                logger.warn("ERROR: VC allele is not found in annotation alleles -- maybe there was trimming?");
+            }
+        }
+        return annotationString;
+    }
+
+    protected Map<Allele, Integer> getADcounts(final VariantContext vc) {
+        final GenotypesContext genotypes = vc.getGenotypes();
+        if ( genotypes == null || genotypes.size() == 0 ) {
+            logger.warn("VC does not have genotypes -- annotations were calculated in wrong order");
+            return null;
+        }
+
+        final Map<Allele, Integer> variantADs = new HashMap<>();
+        for(final Allele a : vc.getAlleles())
+            variantADs.put(a,0);
+
+        for (final Genotype gt : vc.getGenotypes()) {
+            if(!gt.hasAD()) {
+                continue;
+            }
+            final int[] ADs = gt.getAD();
+            for(int i = 1; i < vc.getNAlleles(); i++) {
+                variantADs.put(vc.getAlternateAllele(i-1), variantADs.get(vc.getAlternateAllele(i-1))+ADs[i]); //here -1 is to reconcile allele index with alt allele index
+            }
+        }
+        return variantADs;
     }
 }

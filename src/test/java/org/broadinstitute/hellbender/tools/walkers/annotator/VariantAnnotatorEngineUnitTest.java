@@ -4,13 +4,18 @@ import com.google.common.collect.ImmutableMap;
 import htsjdk.samtools.util.Locatable;
 import htsjdk.variant.variantcontext.*;
 import htsjdk.variant.vcf.*;
+import org.apache.commons.lang3.ArrayUtils;
+import org.bdgenomics.formats.avro.GenotypeAllele;
 import org.broadinstitute.barclay.argparser.CommandLineException;
 import org.broadinstitute.hellbender.engine.FeatureContext;
 import org.broadinstitute.hellbender.engine.FeatureDataSource;
 import org.broadinstitute.hellbender.engine.FeatureInput;
+import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.exceptions.GATKException;
-import org.broadinstitute.hellbender.utils.ClassUtils;
-import org.broadinstitute.hellbender.utils.SimpleInterval;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.AS_RMSMappingQuality;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotation;
+import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotationData;
+import org.broadinstitute.hellbender.utils.*;
 import org.broadinstitute.hellbender.utils.genotyper.*;
 import org.broadinstitute.hellbender.utils.read.ArtificialReadUtils;
 import org.broadinstitute.hellbender.utils.read.GATKRead;
@@ -21,11 +26,68 @@ import org.testng.annotations.Test;
 
 import java.io.File;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public final class VariantAnnotatorEngineUnitTest extends BaseTest {
+    @Test
+    public void testCombineAnnotations() throws Exception {
+        final List<String> annotationGroupsToUse = Collections.emptyList();
+        final List<String> annotationsToUse = Collections.singletonList(AS_RMSMappingQuality.class.getSimpleName());
+        final List<String> annotationsToExclude = Collections.emptyList();
+        final FeatureInput<VariantContext> dbSNPBinding = null;
+        final List<FeatureInput<VariantContext>> features = Collections.emptyList();
+        final VariantAnnotatorEngine vae = VariantAnnotatorEngine.ofSelectedMinusExcluded(annotationGroupsToUse, annotationsToUse, annotationsToExclude, dbSNPBinding, features);
+
+        final Allele REF = Allele.create("A", true);
+        final Allele ALT = Allele.create("T");
+        final List<Allele> alleles = Arrays.asList(new Allele[]{REF, ALT});
+
+
+        final int[] MQs = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, QualityUtils.MAPPING_QUALITY_UNAVAILABLE};
+        final int[] MQ2s = {1, 2, 3, 4, 5, 6, 7, 8, 9, QualityUtils.MAPPING_QUALITY_UNAVAILABLE};
+        final List<Integer> MQsList = Arrays.asList(ArrayUtils.toObject(MQs));
+
+
+        final List<GATKRead> altReads = Arrays.stream(MQs).mapToObj(mq -> ArtificialAnnotationUtils.makeRead(30, mq)).collect(Collectors.toList());
+        final List<GATKRead> refReads = Arrays.stream(MQ2s).mapToObj(mq -> ArtificialAnnotationUtils.makeRead(30, mq)).collect(Collectors.toList());
+
+        final ReadLikelihoods<Allele> likelihoods =
+                ArtificialAnnotationUtils.makeLikelihoods("sample1", refReads, altReads, -10.0, -9.0, REF, ALT);
+
+        final VariantContext vc = ArtificialAnnotationUtils.makeVC();
+        final ReducibleAnnotationData<Number> myData = new ReducibleAnnotationData<>("-10.0");
+
+        new AS_RMSMappingQuality().calculateRawData(vc, likelihoods, myData);
+        Map<String, List<ReducibleAnnotationData>> testAnnotationData = new HashMap<>();
+        testAnnotationData.put(new AS_RMSMappingQuality().getRawKeyName(), Collections.singletonList(myData));
+
+        Map<String, Object> value = vae.combineAnnotations(alleles, testAnnotationData);
+        Assert.assertEquals(value.get(GATKVCFConstants.AS_RAW_RMS_MAPPING_QUALITY_KEY), "285.00|385.00");
+    }
+
+    @Test
+    public void testFinalizeAnnotations() throws Exception {
+        final List<String> annotationGroupsToUse = Collections.emptyList();
+        final List<String> annotationsToUse = Collections.singletonList(AS_RMSMappingQuality.class.getSimpleName());
+        final List<String> annotationsToExclude = Collections.emptyList();
+        final FeatureInput<VariantContext> dbSNPBinding = null;
+        final List<FeatureInput<VariantContext>> features = Collections.emptyList();
+        final VariantAnnotatorEngine vae = VariantAnnotatorEngine.ofSelectedMinusExcluded(annotationGroupsToUse, annotationsToUse, annotationsToExclude, dbSNPBinding, features);
+        final Allele refAllele = Allele.create("A", true);
+        final Allele altAllele = Allele.create("T");
+        final Genotype genotype = new  GenotypeBuilder("sample2", Arrays.asList(refAllele, altAllele))
+                .AD(new int[]{8,9}).make();
+
+        final VariantContext vc = new VariantContextBuilder(ArtificialAnnotationUtils.makeVC()).attribute(GATKVCFConstants.AS_RAW_RMS_MAPPING_QUALITY_KEY, "285.00|385.00").genotypes(genotype).make();
+        final VariantContext result = vae.finalizeAnnotations(vc, vc);
+        Assert.assertNull(result.getAttribute(GATKVCFConstants.AS_RAW_RMS_MAPPING_QUALITY_KEY));
+        Assert.assertNotNull(result.getAttribute(GATKVCFConstants.AS_RMS_MAPPING_QUALITY_KEY));
+    }
+
+
     @Test
     public void testEmpty(){
         final List<String> annotationGroupsToUse= Collections.emptyList();

@@ -8,6 +8,7 @@ import htsjdk.variant.variantcontext.VariantContextBuilder;
 import htsjdk.variant.vcf.VCFConstants;
 import htsjdk.variant.vcf.VCFInfoHeaderLine;
 import htsjdk.variant.vcf.VCFStandardHeaderLines;
+import org.broadinstitute.hellbender.engine.AlignmentContext;
 import org.broadinstitute.hellbender.engine.ReferenceContext;
 import org.broadinstitute.hellbender.exceptions.UserException;
 import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.ReducibleAnnotation;
@@ -15,6 +16,7 @@ import org.broadinstitute.hellbender.tools.walkers.annotator.allelespecific.Redu
 import org.broadinstitute.hellbender.utils.QualityUtils;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.genotyper.ReadLikelihoods;
+import org.broadinstitute.hellbender.utils.pileup.PileupElement;
 import org.broadinstitute.hellbender.utils.read.GATKRead;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFConstants;
 import org.broadinstitute.hellbender.utils.variant.GATKVCFHeaderLines;
@@ -60,6 +62,64 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
         final String annotationString = formattedValue((double) myData.getAttributeMap().get(Allele.NO_CALL));
         annotations.put(getRawKeyName(), annotationString);
         return annotations;
+    }
+
+    @Override
+    public Map<String, Object> combineRawData(final List<Allele> vcAlleles, final List<? extends ReducibleAnnotationData> annotationList) {
+        //VC already contains merged alleles from ReferenceConfidenceVariantContextMerger
+        ReducibleAnnotationData combinedData = new ReducibleAnnotationData(null);
+
+        for (final ReducibleAnnotationData currentValue : annotationList) {
+            parseRawDataString(currentValue.getRawData().toString());
+            combineAttributeMap(currentValue, combinedData);
+
+        }
+        final Map<String, Object> annotations = new HashMap<>();
+        String annotationString = makeRawAnnotationString(vcAlleles, combinedData.getAttributeMap());
+        annotations.put(getRawKeyName(), annotationString);
+        return annotations;
+    }
+
+    public String makeRawAnnotationString(final List<Allele> vcAlleles, final Map<Allele, Number> perAlleleData) {
+        return String.format("%.2f", perAlleleData.get(Allele.NO_CALL));
+    }
+
+    @Override
+    public Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC) {
+        if (!vc.hasAttribute(getRawKeyName()))
+            return new HashMap<>();
+        String rawMQdata = vc.getAttributeAsString(getRawKeyName(),null);
+        if (rawMQdata == null)
+            return new HashMap<>();
+
+        ReducibleAnnotationData myData = new ReducibleAnnotationData(rawMQdata);
+        myData.putAttribute(Allele.NO_CALL, parseRawDataString(rawMQdata));
+
+        String annotationString = makeFinalizedAnnotationString(vc, myData.getAttributeMap());
+        return Collections.singletonMap(getKeyNames().get(0), (Object)annotationString);
+    }
+
+//    public String makeFinalizedAnnotationString(final VariantContext vc, final Map<Allele, Number> perAlleleData, final Map<String, AlignmentContext> stratifiedContexts, final ReadLikelihoods<Allele> likelihoods) {
+//        if ((stratifiedContexts != null && !stratifiedContexts.isEmpty()) || likelihoods != null) {
+//            int numOfReads = getNumOfReads(vc, likelihoods, stratifiedContexts);
+//            return String.format("%.2f", Math.sqrt((double) perAlleleData.get(Allele.NO_CALL) / numOfReads));
+//        }
+//        else {
+//            return makeFinalizedAnnotationString(vc, perAlleleData);
+//        }
+//    }
+    public String makeFinalizedAnnotationString(final VariantContext vc, final Map<Allele, Number> perAlleleData) {
+        int numOfReads = getNumOfReads(vc);
+        return String.format("%.2f", Math.sqrt((double)perAlleleData.get(Allele.NO_CALL)/numOfReads));
+    }
+
+
+    public void combineAttributeMap(ReducibleAnnotationData<Number> toAdd, ReducibleAnnotationData<Number> combined) {
+        if (combined.getAttribute(Allele.NO_CALL) != null)
+            combined.putAttribute(Allele.NO_CALL, (Double) combined.getAttribute(Allele.NO_CALL) + (Double) toAdd.getAttribute(Allele.NO_CALL));
+        else
+            combined.putAttribute(Allele.NO_CALL, toAdd.getAttribute(Allele.NO_CALL));
+
     }
 
     @Override
@@ -158,6 +218,34 @@ public final class RMSMappingQuality extends InfoFieldAnnotation implements Stan
             }
         }
         if (numOfReads <= 0){
+            numOfReads = -1;  //return -1 to result in a NaN
+        }
+        return numOfReads;
+    }
+
+    /**
+     *
+     * @return the number of reads at the given site, calculated as InfoField {@link VCFConstants#DEPTH_KEY} minus the
+     * format field {@link GATKVCFConstants#MIN_DP_FORMAT_KEY} or DP of each of the HomRef genotypes at that site.
+     * Will fall back to calculating the reads from the stratifiedContexts then AlleleLikelyhoods data if provided.
+     * @throws UserException.BadInput if the {@link VCFConstants#DEPTH_KEY} is missing or if the calculated depth is <= 0
+     */
+    @VisibleForTesting
+    static int getNumOfReads(final VariantContext vc,
+                             final ReadLikelihoods<Allele> likelihoods) {
+        int numOfReads = 0;
+        if (vc.hasAttribute(VCFConstants.DEPTH_KEY)) {
+            return getNumOfReads(vc);
+        } else if (likelihoods != null && likelihoods.numberOfAlleles() != 0) {
+            for (int i = 0; i < likelihoods.numberOfSamples(); i++) {
+                for (GATKRead read : likelihoods.sampleReads(i)) {
+                    if (read.getMappingQuality() != QualityUtils.MAPPING_QUALITY_UNAVAILABLE) {
+                        numOfReads++;
+                    }
+                }
+            }
+        }
+        if (numOfReads <= 0) {
             numOfReads = -1;  //return -1 to result in a NaN
         }
         return numOfReads;

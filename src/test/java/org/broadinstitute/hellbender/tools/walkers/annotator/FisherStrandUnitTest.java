@@ -178,7 +178,7 @@ public final class FisherStrandUnitTest {
         final List<GATKRead> refReads = Arrays.asList(makeRead(true), makeRead(true));
         final List<GATKRead> altReads = Arrays.asList(makeRead(false), makeRead(true));
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods("SAMPLE", refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods("SAMPLE", refReads, altReads, -100.0, -100.0, REF, ALT);
 
         final VariantContext vc = makeVC(REF, ALT);
 
@@ -206,7 +206,7 @@ public final class FisherStrandUnitTest {
         final List<GATKRead> refReads = Arrays.asList(makeRead(true), makeRead(true), makeRead(true), makeRead(true));
         final List<GATKRead> altReads = Arrays.asList(makeRead(false), makeRead(true), makeRead(false), makeRead(true));
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods("SAMPLE", refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods("SAMPLE", refReads, altReads, -100.0, -100.0, REF, ALT);
 
         final VariantContext vc = makeVC(REF, ALT);
 

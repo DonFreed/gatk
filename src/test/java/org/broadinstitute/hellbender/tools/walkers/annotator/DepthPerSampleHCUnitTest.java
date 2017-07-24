@@ -27,7 +27,7 @@ public class DepthPerSampleHCUnitTest extends BaseTest {
         final Genotype g = gb.make();
         final List<GATKRead> reads = new ArrayList<>();
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods("sample", reads, -100.0, Aref, C);
+                ArtificialAnnotationUtils.makeLikelihoods("sample", reads, -100.0, Aref, C);
         final VariantContext vc = new VariantContextBuilder("test", "20", 10, 10, AC).genotypes(Arrays.asList(g)).make();
 
         new DepthPerSampleHC().annotate(rc, vc, g, gb, likelihoods);

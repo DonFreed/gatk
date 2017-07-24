@@ -55,7 +55,7 @@ public final class LikelihoodRankSumTestUnitTest extends BaseTest {
 
         // first two reads are ref, last two are alt, "wrong" likelihoods are -100
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods(sample1, refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods(sample1, refReads, altReads, -100.0, -100.0, REF, ALT);
 
         // modify "good" likelihoods manually
         final LikelihoodMatrix<Allele> matrix = likelihoods.sampleMatrix(0);

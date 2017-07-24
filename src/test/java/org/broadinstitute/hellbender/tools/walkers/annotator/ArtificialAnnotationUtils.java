@@ -2,8 +2,9 @@ package org.broadinstitute.hellbender.tools.walkers.annotator;
 
 import com.google.common.collect.ImmutableMap;
 import htsjdk.samtools.TextCigarCodec;
-import htsjdk.variant.variantcontext.Allele;
+import htsjdk.variant.variantcontext.*;
 import org.apache.commons.collections4.ListUtils;
+import org.broadinstitute.hellbender.engine.AlignmentContext;
 import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.genotyper.*;
 import org.broadinstitute.hellbender.utils.read.ArtificialReadUtils;
@@ -13,18 +14,33 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Created by davidben on 10/16/16.
  */
-public class AnnotationArtificialData {
+public class ArtificialAnnotationUtils {
     private static final double MATCH_LIKELIHOOD = -1.0;
+    private static final Allele REF = Allele.create("A", true);
+    private static final Allele ALT = Allele.create("C");
+    private static final List<Allele> ALLELES = Arrays.asList(REF, ALT);
+    private static final String SAMPLE = "sample1";
 
     public static GATKRead makeRead(final int qual, final int mappingQuality) {
         final GATKRead read = ArtificialReadUtils.createArtificialRead(TextCigarCodec.decode("10M"));
         read.setMappingQuality(mappingQuality);
         read.setBaseQualities(Utils.dupBytes((byte) qual, 10));
         return read;
+    }
+
+    public static VariantContext makeVC() {
+        final GenotypesContext testGC = GenotypesContext.create(2);
+        final Allele refAllele = Allele.create("A", true);
+        final Allele altAllele = Allele.create("T");
+
+        return (new VariantContextBuilder())
+                .alleles(Arrays.asList(refAllele, altAllele)).chr("1").start(15L).stop(15L).genotypes(testGC).make();
     }
 
     public static ReadLikelihoods<Allele> makeLikelihoods(final String sample,
@@ -86,5 +102,22 @@ public class AnnotationArtificialData {
         final org.broadinstitute.hellbender.utils.genotyper.SampleList sampleList = new IndexedSampleList(Arrays.asList(sample));
         final AlleleList<Allele> alleleList = new IndexedAlleleList<>(Arrays.asList(refAllele, altAllele));
         return new ReadLikelihoods<>(sampleList, alleleList, readsBySample);
+    }
+
+    // TODO Add a way to get the likliehoods from this path
+    public static VariantContext makeHetAlleleVariantContext(final int refDepth, final int altDepth) { //RETURN LIKELYHOODS AS WELL
+        final int[] expectedAD = {refDepth, altDepth};
+
+        final int dpDepth = 30; //Note: using a different value on purpose so that we can check that reads are preferred over DP
+        final Genotype gAC = new GenotypeBuilder(SAMPLE, ALLELES).DP(dpDepth).make();
+
+        final double log10PError = -5;
+
+        final List<GATKRead> refReads = IntStream.range(0, refDepth).mapToObj(i -> makeRead(30, 5)).collect(Collectors.toList());
+        final List<GATKRead> altReads = IntStream.range(0, altDepth).mapToObj(i -> makeRead(30, 5)).collect(Collectors.toList());
+        final ReadLikelihoods<Allele> likelihoods =
+                ArtificialAnnotationUtils.makeLikelihoods(SAMPLE, refReads, altReads, -100.0, -100.0, REF, ALT);
+
+        return new VariantContextBuilder("test", "20", 10, 10, ALLELES).log10PError(log10PError).genotypes(Arrays.asList(gAC)).make();
     }
 }

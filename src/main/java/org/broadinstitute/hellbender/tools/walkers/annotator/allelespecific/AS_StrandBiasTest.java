@@ -87,6 +87,34 @@ public abstract class AS_StrandBiasTest extends StrandBiasTest implements Reduci
         return annotationString;
     }
 
+    protected String makeReducedAnnotationString(VariantContext vc, Map<Allele,Double> perAltsStrandCounts) {
+        String annotationString = "";
+        for (Allele a : vc.getAlternateAlleles()) {
+            if (!annotationString.isEmpty())
+                annotationString += REDUCED_DELIM;
+            if (!perAltsStrandCounts.containsKey(a))
+                logger.warn("ERROR: VC allele not found in annotation alleles -- maybe there was trimming?");
+            else
+                annotationString += String.format("%.3f", perAltsStrandCounts.get(a));
+        }
+        return annotationString;
+    }
+
+    @Override
+    public Map<String, Object> combineRawData(final List<Allele> vcAlleles, final List<? extends ReducibleAnnotationData> annotationList) {
+        //VC already contains merged alleles from ReferenceConfidenceVariantContextMerger
+        ReducibleAnnotationData combinedData = new AlleleSpecificAnnotationData(vcAlleles, null);
+
+        for (final ReducibleAnnotationData currentValue : annotationList) {
+            parseRawDataString(currentValue);
+            combineAttributeMap(currentValue, combinedData);
+        }
+        final Map<String, Object> annotations = new HashMap<>();
+        final String annotationString = makeRawAnnotationString(vcAlleles, combinedData.getAttributeMap());
+        annotations.put(getRawKeyName(), annotationString);
+        return annotations;
+    }
+
     protected String encode(List<Integer> alleleValues) {
         String annotationString = "";
         for (int j =0; j < alleleValues.size(); j++) {
@@ -97,6 +125,58 @@ public abstract class AS_StrandBiasTest extends StrandBiasTest implements Reduci
         }
         return annotationString;
     }
+
+    /**
+     *
+     * @param vc -- contains the final set of alleles, possibly subset by GenotypeGVCFs
+     * @param originalVC -- used to get all the alleles for all gVCFs
+     * @return
+     */
+    @Override
+    public  Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC) {
+        Map<String, Object> annotations = new HashMap<>();
+        if (!vc.hasAttribute(getRawKeyName()))
+            return new HashMap<>();
+        String rawRankSumData = vc.getAttributeAsString(getRawKeyName(),null);
+        if (rawRankSumData == null)
+            return new HashMap<>();
+
+        AlleleSpecificAnnotationData<List<Integer>> myData = new AlleleSpecificAnnotationData<>(originalVC.getAlleles(), rawRankSumData);
+        parseRawDataString(myData);
+
+        Map<Allele, Double> perAltRankSumResults = calculateReducedData(myData);
+
+        String annotationString = makeReducedAnnotationString(vc, perAltRankSumResults);
+        annotations.put(getKeyNames().get(0), annotationString);
+        return annotations;
+    }
+
+    protected void parseRawDataString(ReducibleAnnotationData<List<Integer>> myData) {
+        final String rawDataString = myData.getRawData();
+        String[] rawDataPerAllele;
+        String[] rawListEntriesAsStringVector;
+        Map<Allele, List<Integer>> perAlleleValues = new HashMap<>();
+        //Initialize maps
+        for (Allele current : myData.getAlleles()) {
+            perAlleleValues.put(current, new LinkedList<Integer>());
+        }
+        //rawDataPerAllele is the list of values for each allele (each of variable length)
+        rawDataPerAllele = rawDataString.split(SPLIT_DELIM);
+        for (int i=0; i<rawDataPerAllele.length; i++) {
+            String alleleData = rawDataPerAllele[i];
+            if (alleleData.isEmpty())
+                continue;
+            List<Integer> alleleList = perAlleleValues.get(myData.getAlleles().get(i));
+            rawListEntriesAsStringVector = alleleData.split(",");
+            //Read counts will only ever be integers
+            for (String s : rawListEntriesAsStringVector) {
+                if (!s.isEmpty())
+                    alleleList.add(Integer.parseInt(s.trim()));
+            }
+        }
+        myData.setAttributeMap(perAlleleValues);
+    }
+
 
     @Override
     @SuppressWarnings({"unchecked", "rawtypes"})//FIXME
@@ -109,6 +189,9 @@ public abstract class AS_StrandBiasTest extends StrandBiasTest implements Reduci
 
         getStrandCountsFromLikelihoodMap(vc, likelihoods, rawAnnotations, MIN_COUNT);
     }
+
+    protected abstract Map<Allele,Double> calculateReducedData(final AlleleSpecificAnnotationData<List<Integer>> combinedData );
+
 
     /**
      Allocate and fill a 2x2 strand contingency table.  In the end, it'll look something like this:

@@ -18,6 +18,7 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
     private static final Logger logger = Logger.getLogger(AS_RankSumTest.class);
     public static final String SPLIT_DELIM = "\\|"; //String.split takes a regex, so we need to escape the pipe
     public static final String PRINT_DELIM = "|";
+    public static final String RAW_DELIM = ",";
     public static final String REDUCED_DELIM = ",";
 
     @Override
@@ -98,5 +99,173 @@ public abstract class AS_RankSumTest extends RankSumTest implements ReducibleAnn
                 }
             }
         }
+    }
+
+    /**
+     *
+     * @param vc -- contains the final set of alleles, possibly subset by GenotypeGVCFs
+     * @param originalVC -- used to get all the alleles for all gVCFs
+     * @return
+     */
+    public  Map<String, Object> finalizeRawData(final VariantContext vc, final VariantContext originalVC) {
+        if (!vc.hasAttribute(getRawKeyName()))
+            return new HashMap<>();
+
+        final String rawRankSumData = vc.getAttributeAsString(getRawKeyName(),null);
+        if (rawRankSumData == null)
+            return new HashMap<>();
+
+        final Map<String,Object> annotations = new HashMap<>();
+        final AlleleSpecificAnnotationData<Histogram> myData = new AlleleSpecificAnnotationData(originalVC.getAlleles(), rawRankSumData);
+        parseCombinedDataString(myData);
+
+        final Map<Allele, Double> perAltRankSumResults = calculateReducedData(myData.getAttributeMap(), myData.getRefAllele());
+        //shortcut for no ref values
+        if (perAltRankSumResults.isEmpty())
+            return annotations;
+        final String annotationString = makeReducedAnnotationString(vc, perAltRankSumResults);
+        annotations.put(getKeyNames().get(0), annotationString);
+        return annotations;
+    }
+
+    protected void parseCombinedDataString(final ReducibleAnnotationData<Histogram> myData) {
+        final String rawDataString = myData.getRawData();
+        String rawDataNoBrackets;
+        final Map<Allele, Histogram> perAlleleValues = new HashMap<>();
+        //Initialize maps
+        for (final Allele current : myData.getAlleles()) {
+            perAlleleValues.put(current, new Histogram());
+        }
+        //Map gives back list with []
+        if (rawDataString.charAt(0) == '[') {
+            rawDataNoBrackets = rawDataString.substring(1, rawDataString.length() - 1);
+        }
+        else {
+            rawDataNoBrackets = rawDataString;
+        }
+        //rawDataPerAllele is a string representation of the Histogram for each allele in the form value, count, value, count...
+        final String[] rawDataPerAllele = rawDataNoBrackets.split(SPLIT_DELIM);
+        for (int i=0; i<rawDataPerAllele.length; i++) {
+            final String alleleData = rawDataPerAllele[i];
+            final Histogram alleleList = perAlleleValues.get(myData.getAlleles().get(i));
+            final String[] rawListEntriesAsStringVector = alleleData.split(RAW_DELIM);
+            for (int j=0; j<rawListEntriesAsStringVector.length; j+=2) {
+                Double value;
+                int count;
+                if (!rawListEntriesAsStringVector[j].isEmpty()) {
+                    value = Double.parseDouble(rawListEntriesAsStringVector[j].trim());
+                    if (!rawListEntriesAsStringVector[j + 1].isEmpty()) {
+                        count = Integer.parseInt(rawListEntriesAsStringVector[j + 1].trim());
+                        if(!value.isNaN())
+                            alleleList.add(value,count);
+                    }
+                }
+            }
+        }
+        myData.setAttributeMap(perAlleleValues);
+        myData.validateAllelesList();
+    }
+
+    public Map<Allele, Double> calculateReducedData(final Map<Allele, Histogram> perAlleleValues, final Allele ref) {
+        final Map<Allele, Double> perAltRankSumResults = new HashMap<>();
+        for (final Allele alt : perAlleleValues.keySet()) {
+            if (alt.equals(ref, false))
+                continue;
+            if (perAlleleValues.get(alt) != null)
+                perAltRankSumResults.put(alt, perAlleleValues.get(alt).median());
+        }
+        return perAltRankSumResults;
+    }
+
+    public Map<String, Object> combineRawData(final List<Allele> vcAlleles, final List<? extends ReducibleAnnotationData> annotationList) {
+        //VC already contains merged alleles from ReferenceConfidenceVariantContextMerger
+        final ReducibleAnnotationData combinedData = initializeNewAnnotationData(vcAlleles);
+
+        for (final ReducibleAnnotationData currentValue : annotationList) {
+            parseRawDataString(currentValue);
+            combineAttributeMap(currentValue, combinedData);
+
+        }
+        final Map<String, Object> annotations = new HashMap<>();
+        final String annotationString = makeCombinedAnnotationString(vcAlleles, combinedData.getAttributeMap());
+        annotations.put(getRawKeyName(), annotationString);
+        return annotations;
+    }
+
+
+    protected void parseRawDataString(final ReducibleAnnotationData<Histogram> myData) {
+        final String rawDataString = myData.getRawData();
+        String rawDataNoBrackets;
+        final Map<Allele, Histogram> perAlleleValues = new HashMap<>();
+        //Initialize maps
+        for (final Allele current : myData.getAlleles()) {
+            perAlleleValues.put(current, new Histogram());
+        }
+        //Map gives back list with []
+        if (rawDataString.charAt(0) == '[') {
+            rawDataNoBrackets = rawDataString.substring(1, rawDataString.length() - 1);
+        }
+        else {
+            rawDataNoBrackets = rawDataString;
+        }
+        //rawDataPerAllele is a per-sample list of the rank sum statistic for each allele
+        final String[] rawDataPerAllele = rawDataNoBrackets.split(SPLIT_DELIM);
+        for (int i=0; i<rawDataPerAllele.length; i++) {
+            final String alleleData = rawDataPerAllele[i];
+            final Histogram alleleList = perAlleleValues.get(myData.getAlleles().get(i));
+            final String[] rawListEntriesAsStringVector = alleleData.split(",");
+            for (int j=0; j<rawListEntriesAsStringVector.length; j++) {
+                Double value;
+                if (!rawListEntriesAsStringVector[j].isEmpty()) {
+                    value = Double.parseDouble(rawListEntriesAsStringVector[j].trim());
+                    if(!value.isNaN())
+                        alleleList.add(value);
+                }
+            }
+        }
+        myData.setAttributeMap(perAlleleValues);
+        myData.validateAllelesList();
+    }
+
+
+    protected void combineAttributeMap(final ReducibleAnnotationData<Histogram> toAdd, final ReducibleAnnotationData<Histogram> combined) {
+        for (final Allele a : combined.getAlleles()) {
+            if (toAdd.hasAttribute(a)) {
+                final Histogram alleleData = combined.getAttribute(a);
+                if (toAdd.getAttribute(a) != null) {
+                    alleleData.add(toAdd.getAttribute(a));
+                    combined.putAttribute(a, alleleData);
+                }
+            }
+        }
+    }
+
+    private String makeReducedAnnotationString(final VariantContext vc, final Map<Allele,Double> perAltRankSumResults) {
+        String annotationString = "";
+        for (final Allele a : vc.getAlternateAlleles()) {
+            if (!annotationString.isEmpty())
+                annotationString += REDUCED_DELIM;
+            if (!perAltRankSumResults.containsKey(a))
+                logger.warn("ERROR: VC allele not found in annotation alleles -- maybe there was trimming?");
+            else
+                annotationString += String.format("%.3f", perAltRankSumResults.get(a));
+        }
+        return annotationString;
+    }
+
+    protected String makeCombinedAnnotationString(final List<Allele> vcAlleles, final Map<Allele, Histogram> perAlleleValues) {
+        String annotationString = "";
+        for (int i = 0; i< vcAlleles.size(); i++) {
+            if (vcAlleles.get(i).isReference())
+                continue;
+            if (i != 0)
+                annotationString += PRINT_DELIM;
+            final Histogram alleleValue = perAlleleValues.get(vcAlleles.get(i));
+            //can be null if there are no ref reads
+            if (alleleValue == null)
+                continue;
+            annotationString += alleleValue.toString();
+        }
+        return annotationString;
     }
 }

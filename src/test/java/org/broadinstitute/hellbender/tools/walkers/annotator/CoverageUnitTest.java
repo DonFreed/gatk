@@ -76,7 +76,7 @@ public final class CoverageUnitTest extends BaseTest {
         final List<GATKRead>  refReads = IntStream.range(0, refDepth).mapToObj(n -> makeRead()).collect(Collectors.toList());
         final List<GATKRead>  altReads = IntStream.range(0, altDepth).mapToObj(n -> makeRead()).collect(Collectors.toList());
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods("sample1", refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods("sample1", refReads, altReads, -100.0, -100.0, REF, ALT);
 
         final VariantContext vc= makeVC();
         final ReferenceContext referenceContext= null;

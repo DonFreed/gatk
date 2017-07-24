@@ -50,7 +50,7 @@ public final class ClippingRankSumTestUnitTest {
         final List<GATKRead> refReads = Arrays.stream(refHardClips).mapToObj(i -> makeRead(i)).collect(Collectors.toList());
         final List<GATKRead> altReads = Arrays.stream(altHardClips).mapToObj(i -> makeRead(i)).collect(Collectors.toList());
         final ReadLikelihoods<Allele> likelihoods =
-                AnnotationArtificialData.makeLikelihoods(SAMPLE_1, refReads, altReads, -100.0, -100.0, REF, ALT);
+                ArtificialAnnotationUtils.makeLikelihoods(SAMPLE_1, refReads, altReads, -100.0, -100.0, REF, ALT);
 
         final ReferenceContext ref= null;
         final VariantContext vc= makeVC(REF, ALT);
