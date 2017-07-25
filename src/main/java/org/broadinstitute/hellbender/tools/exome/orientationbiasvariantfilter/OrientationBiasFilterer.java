@@ -6,6 +6,7 @@ import htsjdk.variant.vcf.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.broadinstitute.hellbender.engine.ProgressMeter;
+import org.broadinstitute.hellbender.exceptions.GATKException;
 import org.broadinstitute.hellbender.tools.picard.analysis.artifacts.Transition;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.UniqueIDWrapper;
