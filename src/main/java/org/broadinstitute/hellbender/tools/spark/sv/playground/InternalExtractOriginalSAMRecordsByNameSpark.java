@@ -27,8 +27,9 @@ import java.util.HashSet;
 @CommandLineProgramProperties(summary="Find reads that have the requested read names and outputs a SAM file with the original SAM records.",
         oneLineSummary="Dump reads that have the requested read names.",
         usageExample = "InternalExtractOriginalSAMRecordsByNameSpark \\" +
-                "-I /path/to/my/dir/longReads.sam -O /path/to/my/dir/structuralVariants.vcf \\" +
-                "-R /path/to/my/reference/reference.2bit --fastaReference /path/to/my/reference/reference.fasta",
+                "-I /path/to/my/dir/longReads.sam \\" +
+                "-O /path/to/my/dir/output.sam \\" +
+                "--readNameFile /path/to/my/dir/readNames.txt",
         programGroup = StructuralVariationSparkProgramGroup.class)
 @BetaFeature
 public final class InternalExtractOriginalSAMRecordsByNameSpark extends GATKSparkTool {

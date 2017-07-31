@@ -47,7 +47,7 @@ import static org.broadinstitute.hellbender.tools.spark.sv.discovery.DiscoverVar
         usageExample = "InternalFilterLongReadAlignmentsSAMSpark -I /path/to/my/dir/longReads.sam -O /path/to/my/dir/filteredAlignmentsDir",
         programGroup = StructuralVariationSparkProgramGroup.class)
 @BetaFeature
-public class InternalFilterLongReadAlignmentsSAMSpark extends GATKSparkTool {
+public final class InternalFilterLongReadAlignmentsSAMSpark extends GATKSparkTool {
     private static final long serialVersionUID = 1L;
     private final Logger localLogger = LogManager.getLogger(InternalFilterLongReadAlignmentsSAMSpark.class);
 
@@ -139,7 +139,7 @@ public class InternalFilterLongReadAlignmentsSAMSpark extends GATKSparkTool {
                                                 final SAMFileHeader header,
                                                 final Logger toolLogger) {
 
-        toolLogger.info( "Processing these many raw alignments" + longReads.count() );
+        toolLogger.info( "Processing these many raw alignments: " + longReads.count() );
 
         final JavaRDD<AlignedContig> parsedContigAlignments
                 = new SAMFormattedContigAlignmentParser(longReads, header, false, toolLogger)

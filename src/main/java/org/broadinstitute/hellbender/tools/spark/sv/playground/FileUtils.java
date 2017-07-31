@@ -2,6 +2,7 @@ package org.broadinstitute.hellbender.tools.spark.sv.playground;
 
 import htsjdk.samtools.*;
 import org.broadinstitute.hellbender.exceptions.GATKException;
+import org.broadinstitute.hellbender.utils.Utils;
 import org.broadinstitute.hellbender.utils.gcs.BucketUtils;
 
 import java.io.BufferedOutputStream;
@@ -10,7 +11,7 @@ import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.util.Iterator;
 
-class FileUtils {
+final class FileUtils {
 
     static void writeSAMFile(final Iterator<SAMRecord> alignments, final SAMFileHeader header, final String outputName,
                              final boolean preOrdered) {
@@ -46,6 +47,28 @@ class FileUtils {
             }
         } catch ( final IOException ioe ) {
             throw new GATKException("Can't write "+fileName, ioe);
+        }
+    }
+
+    static boolean createDirInBucketToWriteTo(final String pathString) {
+        try {
+            Utils.nonNull(pathString);
+            if ( java.nio.file.Files.exists(java.nio.file.Paths.get(pathString)) )
+                throw new IOException("Directory to be created already exists: " + pathString);
+
+            final boolean isSuccessful;
+            if (BucketUtils.isCloudStorageUrl(pathString)) {
+                final java.nio.file.Path dir = java.nio.file.Files.createDirectory(BucketUtils.getPathOnGcs(pathString));
+                isSuccessful = java.nio.file.Files.isDirectory(dir) && java.nio.file.Files.isWritable(dir);
+            } else if (BucketUtils.isHadoopUrl(pathString)) {
+                isSuccessful = org.apache.hadoop.fs.FileSystem.get(new org.apache.hadoop.conf.Configuration()).mkdirs(new org.apache.hadoop.fs.Path(pathString));
+            } else {
+                final java.nio.file.Path dir = java.nio.file.Files.createDirectory( java.nio.file.Paths.get(pathString) );
+                isSuccessful = java.nio.file.Files.isDirectory(dir) && java.nio.file.Files.isWritable(dir);
+            }
+            return isSuccessful;
+        } catch (final IOException x) {
+            throw new GATKException("Could not create directory: " + pathString, x);
         }
     }
 }
