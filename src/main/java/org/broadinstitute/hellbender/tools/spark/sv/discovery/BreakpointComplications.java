@@ -25,7 +25,7 @@ import java.util.*;
  * {@link BreakpointComplications( ChimericAlignment )}.
  */
 @DefaultSerializer(BreakpointComplications.Serializer.class)
-final class BreakpointComplications {
+public final class BreakpointComplications {
 
     @SuppressWarnings("unchecked")
     private static final List<String> DEFAULT_CIGAR_STRINGS_FOR_DUP_SEQ_ON_CTG = new ArrayList<>(Collections.EMPTY_LIST);
@@ -66,7 +66,7 @@ final class BreakpointComplications {
         return homologyForwardStrandRep;
     }
 
-    String getInsertedSequenceForwardStrandRep() {
+    public String getInsertedSequenceForwardStrandRep() {
         return insertedSequenceForwardStrandRep;
     }
 

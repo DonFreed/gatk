@@ -22,20 +22,20 @@ import static org.broadinstitute.hellbender.tools.spark.sv.discovery.NovelAdjace
 @DefaultSerializer(NovelAdjacencyReferenceLocations.Serializer.class)
 public class NovelAdjacencyReferenceLocations {
 
-    final SimpleInterval leftJustifiedLeftRefLoc;
-    final SimpleInterval leftJustifiedRightRefLoc;
+    public final SimpleInterval leftJustifiedLeftRefLoc;
+    public final SimpleInterval leftJustifiedRightRefLoc;
 
-    final EndConnectionType endConnectionType;
-    final BreakpointComplications complication;
+    public final EndConnectionType endConnectionType;
+    public final BreakpointComplications complication;
 
     /**
      * Represents the strand of evidence that was used in computing this breakpoint pair.
      */
-    enum EndConnectionType {
+    public enum EndConnectionType {
         FIVE_TO_THREE, THREE_TO_THREE, FIVE_TO_FIVE
     }
 
-    NovelAdjacencyReferenceLocations(final ChimericAlignment chimericAlignment, final byte[] contigSequence){
+    public NovelAdjacencyReferenceLocations(final ChimericAlignment chimericAlignment, final byte[] contigSequence){
 
         // first get endConnectionType, then get complications, finally use complications to justify breakpoints
         endConnectionType = determineEndConnectionType(chimericAlignment);

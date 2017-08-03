@@ -115,7 +115,7 @@ public final class AlignmentInterval {
      *          Mostly useful for computing micro-homologyForwardStrandRep.
      */
     @VisibleForTesting
-    static int overlapOnContig(final AlignmentInterval one, final AlignmentInterval two) {
+    public static int overlapOnContig(final AlignmentInterval one, final AlignmentInterval two) {
         return Math.max(0,
                 Math.min(one.endInAssembledContig + 1, two.endInAssembledContig + 1)
                         - Math.max(one.startInAssembledContig, two.startInAssembledContig)
