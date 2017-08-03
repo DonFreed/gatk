@@ -59,18 +59,7 @@ public class TargetCodec extends AsciiFeatureCodec<Target> {
      */
     @Override
     public LocationAware makeIndexableSourceFromStream(final InputStream inputStream) {
-        if (inputStream instanceof BlockCompressedInputStream) {
-            // For block compressed inputs, we need to ensure that no buffering takes place above the input stream to
-            // ensure that the correct (virtual file pointer) positions returned from this stream are preserved for
-            // the indexer. We can't used AsciiLineReader in this case since it wraps the input stream with a
-            // PositionalBufferedInputStream.
-            return new IndexableAsciiLineReaderIterator(new BlockCompressedAsciiLineReader((BlockCompressedInputStream) inputStream));
-        } else if (inputStream instanceof PositionalBufferedStream) {
-            // if this is already a PositionalBufferedStream, don't let AsciiLineReader wrap it with another one...
-            return new IndexableAsciiLineReaderIterator(new AsciiLineReader((PositionalBufferedStream) inputStream));
-        } else {
-            return new IndexableAsciiLineReaderIterator(new AsciiLineReader(inputStream));
-        }
+        return new IndexableAsciiLineReaderIterator(AsciiLineReader.from(inputStream));
     }
 
     // Marker class to indicate to readActualHeader that we're being indexed
