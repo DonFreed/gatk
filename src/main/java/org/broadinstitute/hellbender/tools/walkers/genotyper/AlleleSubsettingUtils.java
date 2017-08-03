@@ -72,7 +72,8 @@ public final class AlleleSubsettingUtils {
             }
 
             final boolean useNewLikelihoods = newLikelihoods != null && (depth != 0 || GATKVariantContextUtils.isInformative(newLikelihoods));
-            final GenotypeBuilder gb = useNewLikelihoods ? new GenotypeBuilder(g).PL(newLikelihoods) : new GenotypeBuilder(g).noPL();
+            final int PLindex = MathUtils.maxElementIndex(newLikelihoods);
+            final GenotypeBuilder gb = useNewLikelihoods ? new GenotypeBuilder(g).PL(newLikelihoods).log10PError(GenotypeLikelihoods.getGQLog10FromLikelihoods(PLindex, newLikelihoods)) : new GenotypeBuilder(g).noPL().noGQ();
 
             GATKVariantContextUtils.makeGenotypeCall(g.getPloidy(), gb, assignmentMethod, newLikelihoods, allelesToKeep);
 
