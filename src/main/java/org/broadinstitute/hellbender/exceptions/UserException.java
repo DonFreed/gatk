@@ -104,10 +104,10 @@ public class UserException extends RuntimeException {
         }
     }
 
-    public static class OutdatedVersionIndex extends UserException {
+    public static class OutdatedIndexVersion extends UserException {
         private static final long serialVersionUID = 0L;
 
-        public OutdatedVersionIndex(String fileName, String indexCreationClassName) {
+        public OutdatedIndexVersion(String fileName, String indexCreationClassName) {
             super( "Index file " + fileName + " is out of date (old version). Use "
                     + indexCreationClassName + " to make a new index."
             );

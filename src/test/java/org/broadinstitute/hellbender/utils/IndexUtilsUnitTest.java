@@ -94,7 +94,9 @@ public final class IndexUtilsUnitTest extends BaseTest{
 
         final File tmpVcf= tmpFeatureFilePath.toFile();
         Thread.sleep(1000L); //wait a second
-        tmpFeatureFilePath.toFile().setLastModified(System.currentTimeMillis()); //touch the file but not the index
+        updateFileModifiedTime(tmpFeatureFilePath.toFile()); //touch the file but not the index
+
+
         final Index index = IndexUtils.loadTribbleIndex(tmpVcf, false);
         Assert.assertNotNull(index);
         //this should NOT blow up (files newer than indices are tolerated)

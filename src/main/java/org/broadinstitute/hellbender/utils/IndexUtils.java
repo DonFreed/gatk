@@ -21,7 +21,7 @@ public final class IndexUtils {
     private IndexUtils(){}
 
     private static final Logger logger = LogManager.getLogger(IndexUtils.class);
-
+    
     /**
      * Load a Tribble .idx index from disk, checking for out of date indexes and old versions
      * @return an Index, or null if we're unable to load
@@ -81,7 +81,7 @@ public final class IndexUtils {
         Utils.nonNull(index, "index");
         if (! index.isCurrentVersion()) {
             // we've loaded an old version of the index, we want to remove it
-            throw new UserException.OutdatedVersionIndex(indexFile.getAbsolutePath(), IndexFeatureFile.class.getSimpleName());
+            throw new UserException.OutdatedIndexVersion(indexFile.getAbsolutePath(), IndexFeatureFile.class.getSimpleName());
         } else if (indexFile.lastModified() < featureFile.lastModified()) {
 
             if (errorOnOutOfDateIndex) {

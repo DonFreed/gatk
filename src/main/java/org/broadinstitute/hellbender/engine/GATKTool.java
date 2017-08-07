@@ -73,7 +73,7 @@ public abstract class GATKTool extends CommandLineProgram {
     private boolean disableSequenceDictionaryValidation = false;
 
     public static final String ERROR_ON_OUT_OF_DATE_INDEX = "errorOnOutOfDateIndex";
-    @Argument(fullName = ERROR_ON_OUT_OF_DATE_INDEX, shortName = ERROR_ON_OUT_OF_DATE_INDEX, doc = "Throw an error when the index file is detected to be out of date.", optional = true, common = true)
+    @Argument(fullName = ERROR_ON_OUT_OF_DATE_INDEX, shortName = ERROR_ON_OUT_OF_DATE_INDEX, doc = "Throw an error when the index file is detected to be out of date (older than the indexed file).", optional = true, common = true)
     protected boolean errorOnOutOfDateIndex = false;
 
     @Argument(fullName=StandardArgumentDefinitions.CREATE_OUTPUT_BAM_INDEX_LONG_NAME,
