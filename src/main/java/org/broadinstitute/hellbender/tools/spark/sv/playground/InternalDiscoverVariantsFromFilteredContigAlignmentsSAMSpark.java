@@ -64,7 +64,7 @@ public final class InternalDiscoverVariantsFromFilteredContigAlignmentsSAMSpark 
         final JavaRDD<AlignedContig> contigsWithAlignmentsReconstructed
                 = InternalFilterLongReadAlignmentsSAMSpark.filterByScore(getReads(), getHeaderForReads(), localLogger);
 
-        new InternalVariantDetectorFromLongReadAlignmentsForSimpleInsDel()
+        new ForSimpleInsDel()
                 .inferSvAndWriteVCF(contigsWithAlignmentsReconstructed, vcfOutputFileName, ctx.broadcast(getReference()),
                         discoverStageArgs.fastaReference, getAuthenticatedGCSOptions(), localLogger);
     }

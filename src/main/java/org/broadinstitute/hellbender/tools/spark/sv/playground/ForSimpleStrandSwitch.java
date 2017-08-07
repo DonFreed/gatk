@@ -24,7 +24,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 
-final class InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch implements InternalVariantDetectorFromLongReadAlignments {
+final class ForSimpleStrandSwitch implements VariantDetectorFromLongReadAlignments {
 
     @SuppressWarnings("unchecked")
     private static final List<String> EMPTY_INSERTION_MAPPINGS = Collections.EMPTY_LIST;
@@ -36,38 +36,57 @@ final class InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch i
                                    final Broadcast<ReferenceMultiSource> broadcastReference, final String fastaReference,
                                    final GCSOptions options, final Logger toolLogger) {
 
+        longReads.cache();
+        toolLogger.info(longReads.count() + " chimera indicating either 1) simple strand-switch breakpoints, or 2) inverted duplication.");
+
+        // split between suspected inv dup VS strand-switch breakpoint
+        final JavaRDD<VariantContext> simpleStrandSwitchBkpts =
+                dealWithSimpleStrandSwitchBkpts(longReads.filter(read -> !isLikelyInvertedDuplication(read)), broadcastReference, toolLogger);
+        SVVCFWriter.writeVCF(options, vcfOutputFileName.replace(".vcf", "_simpleSS.vcf"), fastaReference, simpleStrandSwitchBkpts, toolLogger);
+
+        final JavaRDD<VariantContext> invDups =
+                dealWithSuspectedInvDup(longReads.filter(ForSimpleStrandSwitch::isLikelyInvertedDuplication), broadcastReference, toolLogger);
+        if (invDups != null)
+            SVVCFWriter.writeVCF(options, vcfOutputFileName.replace(".vcf", "_invDup.vcf"), fastaReference, simpleStrandSwitchBkpts.union(invDups), toolLogger);
+
+        longReads.unpersist();
+    }
+
+    private JavaRDD<VariantContext> dealWithSimpleStrandSwitchBkpts(final JavaRDD<AlignedContig> longReads,
+                                                                    final Broadcast<ReferenceMultiSource> broadcastReference,
+                                                                    final Logger toolLogger) {
         final JavaPairRDD<ChimericAlignment, byte[]> inversionOrInvertedInsertion =
                 longReads
-                        .filter(read -> read.alignmentIntervals.size() > 1) // remove contigs who after filtering & gap-split has only one alignment
-                        .filter(read -> !isLikelyInvertedDuplication(read)) // split between suspected inv dup VS strand-switch breakpoint
-                        .mapToPair(InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch::convertAlignmentIntervalToChimericAlignment)
-                        .filter(Objects::nonNull);
+                        .mapToPair(ForSimpleStrandSwitch::convertAlignmentIntervalToChimericAlignment)
+                        .filter(Objects::nonNull).cache();
 
-        toolLogger.info(inversionOrInvertedInsertion.count() + " chimera indicating simple strand-switch breakpoints");
+        toolLogger.info(inversionOrInvertedInsertion.count() + " chimera indicating simple strand-switch breakpoints.");
 
-        // deal with strand-switch breakpoint
-        final JavaRDD<VariantContext> annotatedVariants =
-                inversionOrInvertedInsertion
+        return inversionOrInvertedInsertion
                         .mapToPair(pair -> new Tuple2<>(new NovelAdjacencyReferenceLocations(pair._1, pair._2), pair._1))
                         .groupByKey()
-                        .mapToPair(noveltyAndEvidence -> inferType(noveltyAndEvidence._1, noveltyAndEvidence._2, broadcastReference.getValue()))
+                        .mapToPair(noveltyAndEvidence -> inferType(noveltyAndEvidence, broadcastReference.getValue()))
                         .flatMap(noveltyTypeAndEvidence ->
                                 AnnotatedVariantProducer.produceMultipleAnnotatedVcFromNovelAdjacency(noveltyTypeAndEvidence._1,
                                         noveltyTypeAndEvidence._2._1, noveltyTypeAndEvidence._2._2, broadcastReference));
+    }
 
-        SVVCFWriter.writeVCF(options, vcfOutputFileName, fastaReference, annotatedVariants, toolLogger);
+    private JavaRDD<VariantContext> dealWithSuspectedInvDup(final JavaRDD<AlignedContig> longReads,
+                                                            final Broadcast<ReferenceMultiSource> broadcastReference,
+                                                            final Logger toolLogger) {
+        final JavaRDD<AlignedContig> invDupSuspects =
+                longReads
+                        .filter(ForSimpleStrandSwitch::isLikelyInvertedDuplication).cache();
 
-        // deal with suspected inv dup
-//        final JavaRDD<AlignedContig> invDupSuspects =
-//                longReads
-//                        .filter(contig -> contig.alignmentIntervals.size() > 1) // remove contigs who after filtering & gap-split has only one alignment
-//                        .filter(InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch::isLikelyInvertedDuplication);
+        toolLogger.info(invDupSuspects.count() + " chimera indicating inverted duplication");
+        return null;
     }
 
     /**
      * Taking advantage of the fact that for input read, we know it has only two alignments that map to the same reference
      * chromosome, with strand switch.
-     * @return  null if the pair of the alignments are no strong enough to support a strand switch breakpoint,
+     * @return  null if the pair of the alignments are no strong enough to support a strand switch breakpoint
+     *                  {@link #splitPairStrongEnoughEvidenceForCA(AlignmentInterval, AlignmentInterval, int, int)},
      *          otherwise a pair {read sequence, chimeric alignment}
      */
     private static Tuple2<ChimericAlignment, byte[]> convertAlignmentIntervalToChimericAlignment
@@ -89,9 +108,6 @@ final class InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch i
      *  1) either alignment may have very low mapping quality (a more relaxed mapping quality threshold);
      *  2) either alignment may consume only a "short" part of the contig, or if assuming that the alignment consumes
      *     roughly the same amount of ref bases and read bases, has isAlignment that is too short
-     * @param intervalOne
-     * @param intervalTwo
-     * @return
      */
     private static boolean splitPairStrongEnoughEvidenceForCA(final AlignmentInterval intervalOne,
                                                               final AlignmentInterval intervalTwo,
@@ -220,11 +236,12 @@ final class InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch i
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static Tuple2<NovelAdjacencyReferenceLocations, Tuple2<Iterable<SvType>, Iterable<ChimericAlignment>>>
-    inferType(final NovelAdjacencyReferenceLocations novelAdjacency, final Iterable<ChimericAlignment> chimericAlignments,
+    inferType(final Tuple2<NovelAdjacencyReferenceLocations, Iterable<ChimericAlignment>> noveltyAndEvidence,
               final ReferenceMultiSource reference) {
 
+        final NovelAdjacencyReferenceLocations novelAdjacency = noveltyAndEvidence._1;
+        final Iterable<ChimericAlignment> chimericAlignments = noveltyAndEvidence._2;
         final BreakEndVariantType bkpt_1, bkpt_2;
         if (novelAdjacency.endConnectionType == NovelAdjacencyReferenceLocations.EndConnectionType.FIVE_TO_FIVE) {
             bkpt_1 = new INV55BND(novelAdjacency, true, reference);

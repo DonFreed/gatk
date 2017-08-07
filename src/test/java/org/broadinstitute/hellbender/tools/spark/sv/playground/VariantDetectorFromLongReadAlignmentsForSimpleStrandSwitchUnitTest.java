@@ -11,7 +11,7 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
-public class InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitchUnitTest extends BaseTest {
+public class VariantDetectorFromLongReadAlignmentsForSimpleStrandSwitchUnitTest extends BaseTest {
 
     @Test
     public void test (){
@@ -40,6 +40,6 @@ public class InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitchU
         final AlignedContig contig = new AlignedContig("asm024381:tig00001", one.getReadBases(),
                 Arrays.asList(intervalOne, intervalTwo), false);
 
-        Assert.assertFalse( InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch.isLikelyInvertedDuplication(contig) );
+        Assert.assertFalse( ForSimpleStrandSwitch.isLikelyInvertedDuplication(contig) );
     }
 }

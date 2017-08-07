@@ -89,7 +89,7 @@ public final class InternalCpxSvDiscoverFromLongReadsSpark extends GATKSparkTool
 
         // split up the long reads by their possible type of SV
         final EnumMap<RawTypes, JavaRDD<AlignedContig>> splitUpLongReads =
-                splitReads(contigsWithAlignmentsReconstructed, localLogger);
+                splitReadsByPossiblyRawTypes(contigsWithAlignmentsReconstructed, localLogger);
 
         if ( !FileUtils.createDirInBucketToWriteTo(outputDir) )
             throw new GATKException("Could not create directory " + outputDir + " to write results to.");
@@ -99,12 +99,12 @@ public final class InternalCpxSvDiscoverFromLongReadsSpark extends GATKSparkTool
             splitUpLongReads.forEach((k, v) -> writeSAM(v, k.name(), reads, headerBroadcast, outputDir, localLogger));
         }
 
-        new InternalVariantDetectorFromLongReadAlignmentsForSimpleInsDel()
+        new ForSimpleInsDel()
                 .inferSvAndWriteVCF(splitUpLongReads.get(RawTypes.InsDel), outputDir+"/"+RawTypes.InsDel.name()+".vcf",
                         ctx.broadcast(getReference()), discoverStageArgs.fastaReference, getAuthenticatedGCSOptions(),
                         localLogger);
 
-        new InternalVariantDetectorFromLongReadAlignmentsForSimpleStrandSwitch()
+        new ForSimpleStrandSwitch()
                 .inferSvAndWriteVCF(splitUpLongReads.get(RawTypes.Inv), outputDir+"/"+RawTypes.Inv.name()+".vcf",
                         ctx.broadcast(getReference()), discoverStageArgs.fastaReference, getAuthenticatedGCSOptions(),
                         localLogger);
@@ -172,8 +172,8 @@ public final class InternalCpxSvDiscoverFromLongReadsSpark extends GATKSparkTool
                         isLikelySimpleInsDel(longreadWithOnlyOneConfig));
     }
 
-    private static EnumMap<RawTypes, JavaRDD<AlignedContig>> splitReads(final JavaRDD<AlignedContig> longreadsWithAlignmentsReconstructed,
-                                                                        final Logger toolLogger) {
+    private static EnumMap<RawTypes, JavaRDD<AlignedContig>> splitReadsByPossiblyRawTypes(final JavaRDD<AlignedContig> longreadsWithAlignmentsReconstructed,
+                                                                                          final Logger toolLogger) {
 
         final EnumMap<RawTypes, JavaRDD<AlignedContig>> longreadsByRawTypes = new EnumMap<>(RawTypes.class);
 

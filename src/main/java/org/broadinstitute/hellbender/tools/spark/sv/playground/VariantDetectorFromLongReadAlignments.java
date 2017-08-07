@@ -11,7 +11,7 @@ import org.broadinstitute.hellbender.tools.spark.sv.discovery.AlignedContig;
  * A base class for workflow of variant breakpoint detection from split alignments, variant type interpretation,
  * and resolving complication {@link org.broadinstitute.hellbender.tools.spark.sv.discovery.BreakpointComplications}.
  */
-interface InternalVariantDetectorFromLongReadAlignments {
+interface VariantDetectorFromLongReadAlignments {
 
     abstract void inferSvAndWriteVCF(final JavaRDD<AlignedContig> longReads, final String vcfOutputFileName,
                                      final Broadcast<ReferenceMultiSource> broadcastReference, final String fastaReference,

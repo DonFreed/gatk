@@ -26,7 +26,6 @@ import java.util.stream.Collectors;
 public class AnnotatedVariantProducer implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    @SuppressWarnings("unchecked")
     public static Iterator<VariantContext> produceMultipleAnnotatedVcFromNovelAdjacency(final NovelAdjacencyReferenceLocations novelAdjacencyReferenceLocations,
                                                                                         final Iterable<SvType> inferredType,
                                                                                         final Iterable<ChimericAlignment> contigAlignments,

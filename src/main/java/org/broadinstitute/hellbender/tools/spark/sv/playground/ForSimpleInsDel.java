@@ -23,7 +23,7 @@ import static org.broadinstitute.hellbender.tools.spark.sv.discovery.ChimericAli
 import static org.broadinstitute.hellbender.tools.spark.sv.discovery.DiscoverVariantsFromContigAlignmentsSAMSpark.annotateVariant;
 import static org.broadinstitute.hellbender.tools.spark.sv.discovery.DiscoverVariantsFromContigAlignmentsSAMSpark.inferType;
 
-final class InternalVariantDetectorFromLongReadAlignmentsForSimpleInsDel implements InternalVariantDetectorFromLongReadAlignments {
+final class ForSimpleInsDel implements VariantDetectorFromLongReadAlignments {
 
     public void inferSvAndWriteVCF(final JavaRDD<AlignedContig> longReads, final String vcfOutputFileName,
                                    final Broadcast<ReferenceMultiSource> broadcastReference, final String fastaReference,
@@ -32,8 +32,7 @@ final class InternalVariantDetectorFromLongReadAlignmentsForSimpleInsDel impleme
         // convert to ChimericAlignment, similar to ChimericAlignment.parseOneContig(final AlignedContig, final int), except the head/tail filtering
         final JavaPairRDD<byte[], List<ChimericAlignment>> chimericAlignments =
                 longReads
-                        .filter(contig -> contig.alignmentIntervals.size() > 1) // remove contigs who after filtering & gap-split has only one alignment
-                        .mapToPair(InternalVariantDetectorFromLongReadAlignmentsForSimpleInsDel::convertAlignmentIntervalToChimericAlignment);
+                        .mapToPair(ForSimpleInsDel::convertAlignmentIntervalToChimericAlignment);
 
         // usual business as in DiscoverVariantsFromContigAlignmentsSAMSpark#discoverVariantsAndWriteVCF()
         final JavaRDD<VariantContext> annotatedVariants =
