@@ -11,6 +11,8 @@ import htsjdk.samtools.CigarOperator;
 import htsjdk.samtools.TextCigarCodec;
 import htsjdk.samtools.util.SequenceUtil;
 import org.broadinstitute.hellbender.exceptions.GATKException;
+import org.broadinstitute.hellbender.tools.spark.sv.utils.AlignmentStrand;
+import org.broadinstitute.hellbender.tools.spark.sv.utils.SVUtils;
 import org.broadinstitute.hellbender.utils.SimpleInterval;
 import org.broadinstitute.hellbender.utils.read.CigarUtils;
 import scala.Tuple2;
@@ -41,8 +43,12 @@ public final class BreakpointComplications {
     private SimpleInterval dupSeqRepeatUnitRefSpan = null;
     private int dupSeqRepeatNumOnRef = 0;
     private int dupSeqRepeatNumOnCtg = 0;
+    private List<AlignmentStrand> dupSeqStrandOnRef = null;
+    private List<AlignmentStrand> dupSeqStrandOnCtg = null;
     private List<String> cigarStringsForDupSeqOnCtg = null;
     private boolean dupAnnotIsFromOptimization = false;
+
+    private SimpleInterval invertedTransInsertionRefSpan = null;
 
     /**
      * @return Intended for use in debugging and exception message only.
@@ -52,11 +58,26 @@ public final class BreakpointComplications {
         String toPrint = "homology: " + homologyForwardStrandRep + "\tinserted sequence: " + insertedSequenceForwardStrandRep;
 
         if (hasDuplicationAnnotation()) {
-            toPrint += String.format("\ttandem duplication repeat unit ref span: %s\tref repeat num: %d\tctg repeat num: %d\tcigarStringsForDupSeqOnCtg: %s\ttandupAnnotationIsFromSimpleOptimization: %s",
-                    dupSeqRepeatUnitRefSpan, dupSeqRepeatNumOnRef, dupSeqRepeatNumOnCtg, cigarStringsForDupSeqOnCtg, isDupAnnotIsFromOptimization() ? "true" : "false");
+            toPrint += String.format("\ttandem duplication repeat unit ref span: %s\t"+
+                            "ref repeat num: %d\t"+
+                            "ctg repeat num: %d\t"+
+                            "dupSeqStrandOnRef: %s\t" +
+                            "dupSeqStrandOnCtg: %s\t" +
+                            "cigarStringsForDupSeqOnCtg: %s\t"+
+                            "tandupAnnotationIsFromSimpleOptimization: %s\t" +
+                            "invertedTransInsertionRefSpan: %s",
+                    dupSeqRepeatUnitRefSpan == null ? "" : dupSeqRepeatUnitRefSpan,
+                    dupSeqRepeatNumOnRef, dupSeqRepeatNumOnCtg,
+                    dupSeqStrandOnRef == null ? "" : dupSeqStrandOnRef.stream().map(AlignmentStrand::toString).collect(SVUtils.arrayListCollector(dupSeqStrandOnRef.size())).toString(),
+                    dupSeqStrandOnCtg == null ? "" : dupSeqStrandOnCtg.stream().map(AlignmentStrand::toString).collect(SVUtils.arrayListCollector(dupSeqStrandOnCtg.size())).toString(),
+                    cigarStringsForDupSeqOnCtg == null ? "" : cigarStringsForDupSeqOnCtg,
+                    isDupAnnotIsFromOptimization() ? "true" : "false",
+                    invertedTransInsertionRefSpan == null ? "" : invertedTransInsertionRefSpan);
         }
         return toPrint;
     }
+
+    // all these getters may return null, check before accessing.
 
     boolean hasDuplicationAnnotation() {
         return hasDuplicationAnnotation;
@@ -82,12 +103,24 @@ public final class BreakpointComplications {
         return dupSeqRepeatNumOnCtg;
     }
 
+    List<String> getDupSeqStrandOnRef() {
+        return dupSeqStrandOnRef == null ? null : dupSeqStrandOnRef.stream().map(AlignmentStrand::toString).collect(SVUtils.arrayListCollector(dupSeqStrandOnRef.size()));
+    }
+
+    List<String> getDupSeqStrandOnCtg() {
+        return dupSeqStrandOnCtg == null ? null : dupSeqStrandOnCtg.stream().map(AlignmentStrand::toString).collect(SVUtils.arrayListCollector(dupSeqStrandOnCtg.size()));
+    }
+
     List<String> getCigarStringsForDupSeqOnCtg() {
         return cigarStringsForDupSeqOnCtg;
     }
 
     boolean isDupAnnotIsFromOptimization() {
         return dupAnnotIsFromOptimization;
+    }
+
+    SimpleInterval getInvertedTransInsertionRefSpan() {
+        return invertedTransInsertionRefSpan;
     }
 
     @VisibleForTesting
@@ -100,6 +133,7 @@ public final class BreakpointComplications {
     BreakpointComplications(final String homologyForwardStrandRep, final String insertedSequenceForwardStrandRep,
                             final boolean hasDuplicationAnnotation, final SimpleInterval dupSeqRepeatUnitRefSpan,
                             final int dupSeqRepeatNumOnRef, final int dupSeqRepeatNumOnCtg,
+                            final List<AlignmentStrand> dupSeqStrandOnRef, final List<AlignmentStrand> dupSeqStrandOnCtg,
                             final List<String> cigarStringsForDupSeqOnCtg, final boolean dupAnnotIsFromOptimization) {
         this.homologyForwardStrandRep = homologyForwardStrandRep;
         this.insertedSequenceForwardStrandRep = insertedSequenceForwardStrandRep;
@@ -107,6 +141,8 @@ public final class BreakpointComplications {
         this.dupSeqRepeatUnitRefSpan = dupSeqRepeatUnitRefSpan;
         this.dupSeqRepeatNumOnRef = dupSeqRepeatNumOnRef;
         this.dupSeqRepeatNumOnCtg = dupSeqRepeatNumOnCtg;
+        this.dupSeqStrandOnRef = dupSeqStrandOnRef;
+        this.dupSeqStrandOnCtg = dupSeqStrandOnCtg;
         this.cigarStringsForDupSeqOnCtg = cigarStringsForDupSeqOnCtg;
         this.dupAnnotIsFromOptimization = dupAnnotIsFromOptimization;
     }
@@ -145,6 +181,7 @@ public final class BreakpointComplications {
         insertedSequenceForwardStrandRep = getInsertedSequence(firstContigRegion, secondContigRegion, contigSeq);
         dupSeqRepeatUnitRefSpan = null;
         dupSeqRepeatNumOnRef = dupSeqRepeatNumOnCtg = 0;
+        dupSeqStrandOnRef = dupSeqStrandOnCtg = null;
         cigarStringsForDupSeqOnCtg = null;
         dupAnnotIsFromOptimization = false;
         hasDuplicationAnnotation = false;
@@ -199,6 +236,8 @@ public final class BreakpointComplications {
         dupSeqRepeatUnitRefSpan   = new SimpleInterval(leftReferenceInterval.getContig(), r2b, r1e);
         dupSeqRepeatNumOnRef      = 1;
         dupSeqRepeatNumOnCtg      = 2;
+        dupSeqStrandOnRef         = Arrays.asList(AlignmentStrand.FORWARD);
+        dupSeqStrandOnCtg         = Arrays.asList(AlignmentStrand.FORWARD, AlignmentStrand.FORWARD);
         cigarStringsForDupSeqOnCtg = new ArrayList<>(2);
         if (firstContigRegion.forwardStrand) {
             cigarStringsForDupSeqOnCtg.add( TextCigarCodec.encode(extractCigarForTandup(firstContigRegion, r1e, r2b)) );
@@ -219,6 +258,8 @@ public final class BreakpointComplications {
         dupSeqRepeatUnitRefSpan  = new SimpleInterval(leftReferenceInterval.getContig(), r1e - ( c1e - c2b ), r1e);
         dupSeqRepeatNumOnRef     = 2;
         dupSeqRepeatNumOnCtg     = 1;
+        dupSeqStrandOnRef         = Arrays.asList(AlignmentStrand.FORWARD, AlignmentStrand.FORWARD);
+        dupSeqStrandOnCtg         = Arrays.asList(AlignmentStrand.FORWARD);
         cigarStringsForDupSeqOnCtg = DEFAULT_CIGAR_STRINGS_FOR_DUP_SEQ_ON_CTG;
     }
 
@@ -257,6 +298,8 @@ public final class BreakpointComplications {
                                                     : duplicationComplication.higherRepeatNumberEstimate;
         dupSeqRepeatNumOnCtg          = isExpansion ? duplicationComplication.higherRepeatNumberEstimate
                                                     : duplicationComplication.lowerRepeatNumberEstimate;
+        dupSeqStrandOnRef             = new ArrayList<AlignmentStrand>(Collections.nCopies(dupSeqRepeatNumOnRef, AlignmentStrand.FORWARD));
+        dupSeqStrandOnCtg             = new ArrayList<AlignmentStrand>(Collections.nCopies(dupSeqRepeatNumOnCtg, AlignmentStrand.FORWARD));
         dupAnnotIsFromOptimization    = true;
     }
 
@@ -444,6 +487,14 @@ public final class BreakpointComplications {
             dupSeqRepeatUnitRefSpan = new SimpleInterval(ctg, start, end);
             dupSeqRepeatNumOnRef = input.readInt();
             dupSeqRepeatNumOnCtg = input.readInt();
+            dupSeqStrandOnRef = new ArrayList<>(dupSeqRepeatNumOnRef);
+            for (int i=0; i<dupSeqRepeatNumOnRef; ++i) {
+                dupSeqStrandOnRef.add(AlignmentStrand.values()[input.readInt()]);
+            }
+            dupSeqStrandOnCtg = new ArrayList<>(dupSeqRepeatNumOnCtg);
+            for (int i=0; i<dupSeqRepeatNumOnCtg; ++i) {
+                dupSeqStrandOnCtg.add(AlignmentStrand.values()[input.readInt()]);
+            }
             final int cigarCounts = input.readInt();
             cigarStringsForDupSeqOnCtg = new ArrayList<>(cigarCounts);
             for(int i = 0; i < cigarCounts; ++i) {
@@ -454,8 +505,17 @@ public final class BreakpointComplications {
             dupSeqRepeatUnitRefSpan = null;
             dupSeqRepeatNumOnRef = 0;
             dupSeqRepeatNumOnCtg = 0;
+            dupSeqStrandOnRef = null;
+            dupSeqStrandOnCtg = null;
             cigarStringsForDupSeqOnCtg = null;
             dupAnnotIsFromOptimization = false;
+        }
+
+        if (input.readBoolean()) {
+            final String chr = input.readString();
+            final int start = input.readInt();
+            final int end = input.readInt();
+            invertedTransInsertionRefSpan = new SimpleInterval(chr, start, end);
         }
     }
 
@@ -469,9 +529,17 @@ public final class BreakpointComplications {
             output.writeInt(dupSeqRepeatUnitRefSpan.getEnd());
             output.writeInt(dupSeqRepeatNumOnRef);
             output.writeInt(dupSeqRepeatNumOnCtg);
+            dupSeqStrandOnRef.forEach(s -> output.writeInt(s.ordinal()));
+            dupSeqStrandOnCtg.forEach(s -> output.writeInt(s.ordinal()));
             output.writeInt(cigarStringsForDupSeqOnCtg.size());
             cigarStringsForDupSeqOnCtg.forEach(output::writeString);
             output.writeBoolean(dupAnnotIsFromOptimization);
+        }
+        output.writeBoolean(invertedTransInsertionRefSpan != null);
+        if (invertedTransInsertionRefSpan != null) {
+            output.writeString(invertedTransInsertionRefSpan.getContig());
+            output.writeInt(invertedTransInsertionRefSpan.getStart());
+            output.writeInt(invertedTransInsertionRefSpan.getEnd());
         }
     }
 
@@ -490,8 +558,13 @@ public final class BreakpointComplications {
         if (!insertedSequenceForwardStrandRep.equals(that.insertedSequenceForwardStrandRep)) return false;
         if (dupSeqRepeatUnitRefSpan != null ? !dupSeqRepeatUnitRefSpan.equals(that.dupSeqRepeatUnitRefSpan) : that.dupSeqRepeatUnitRefSpan != null)
             return false;
-        return cigarStringsForDupSeqOnCtg != null ? cigarStringsForDupSeqOnCtg.equals(that.cigarStringsForDupSeqOnCtg)
-                : that.cigarStringsForDupSeqOnCtg == null;
+        if (dupSeqStrandOnRef != null ? !dupSeqStrandOnRef.equals(that.dupSeqStrandOnRef) : that.dupSeqStrandOnRef != null)
+            return false;
+        if (dupSeqStrandOnCtg != null ? !dupSeqStrandOnCtg.equals(that.dupSeqStrandOnCtg) : that.dupSeqStrandOnCtg != null)
+            return false;
+        if (cigarStringsForDupSeqOnCtg != null ? !cigarStringsForDupSeqOnCtg.equals(that.cigarStringsForDupSeqOnCtg) : that.cigarStringsForDupSeqOnCtg != null)
+            return false;
+        return invertedTransInsertionRefSpan != null ? invertedTransInsertionRefSpan.equals(that.invertedTransInsertionRefSpan) : that.invertedTransInsertionRefSpan == null;
     }
 
     @Override
@@ -502,8 +575,11 @@ public final class BreakpointComplications {
         result = 31 * result + (dupSeqRepeatUnitRefSpan != null ? dupSeqRepeatUnitRefSpan.hashCode() : 0);
         result = 31 * result + dupSeqRepeatNumOnRef;
         result = 31 * result + dupSeqRepeatNumOnCtg;
+        result = 31 * result + (dupSeqStrandOnRef != null ? dupSeqStrandOnRef.hashCode() : 0);
+        result = 31 * result + (dupSeqStrandOnCtg != null ? dupSeqStrandOnCtg.hashCode() : 0);
         result = 31 * result + (cigarStringsForDupSeqOnCtg != null ? cigarStringsForDupSeqOnCtg.hashCode() : 0);
         result = 31 * result + (dupAnnotIsFromOptimization ? 1 : 0);
+        result = 31 * result + (invertedTransInsertionRefSpan != null ? invertedTransInsertionRefSpan.hashCode() : 0);
         return result;
     }
 

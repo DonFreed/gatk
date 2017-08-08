@@ -52,6 +52,38 @@ final class ForSimpleStrandSwitch implements VariantDetectorFromLongReadAlignmen
         longReads.unpersist();
     }
 
+    /**
+     * @return true iff the overlap of the two AI's made up the CA is strictly greater than half of any of the two AI's ref span.
+     */
+    @VisibleForTesting
+    static boolean isLikelyInvertedDuplication(final AlignedContig longRead) {
+        final int[] overlaps = computeOverlaps(longRead);
+        return 2 * overlaps[0] > Math.min(longRead.alignmentIntervals.get(0).referenceSpan.size(),
+                                          longRead.alignmentIntervals.get(1).referenceSpan.size());
+    }
+
+    /**
+     * Given a read with only two alignments mapped to the same chromosome, return an array of size 2, with elements
+     *   [0] : overlap length on reference
+     *   [1] : overlap length on read
+     */
+    private static int[] computeOverlaps(final AlignedContig longRead) {
+        final SimpleInterval refSpanOne = longRead.alignmentIntervals.get(0).referenceSpan,
+                             refSpanTwo = longRead.alignmentIntervals.get(1).referenceSpan;
+
+        // dummy number for chr to be used in constructing SVInterval, since input CA has 2 AI & both map to the same chr
+        final int dummyChr = 1;
+        final SVInterval intOne = new SVInterval(dummyChr, refSpanOne.getStart(), refSpanOne.getEnd() + 1),
+                         intTwo = new SVInterval(dummyChr, refSpanTwo.getStart(), refSpanTwo.getEnd() + 1);
+
+        final int overlapOnRef = intOne.overlapLen(intTwo);
+        final int overlapOnRead = Math.max(0, 1 + longRead.alignmentIntervals.get(0).endInAssembledContig
+                                                - longRead.alignmentIntervals.get(1).startInAssembledContig);
+
+        return new int[]{overlapOnRef, overlapOnRead};
+    }
+
+    // =================================================================================================================
     private JavaRDD<VariantContext> dealWithSimpleStrandSwitchBkpts(final JavaRDD<AlignedContig> longReads,
                                                                     final Broadcast<ReferenceMultiSource> broadcastReference,
                                                                     final Logger toolLogger) {
@@ -67,19 +99,9 @@ final class ForSimpleStrandSwitch implements VariantDetectorFromLongReadAlignmen
                         .groupByKey()
                         .mapToPair(noveltyAndEvidence -> inferType(noveltyAndEvidence, broadcastReference.getValue()))
                         .flatMap(noveltyTypeAndEvidence ->
-                                AnnotatedVariantProducer.produceMultipleAnnotatedVcFromNovelAdjacency(noveltyTypeAndEvidence._1,
+                                AnnotatedVariantProducer
+                                        .produceMultipleAnnotatedVcFromNovelAdjacency(noveltyTypeAndEvidence._1,
                                         noveltyTypeAndEvidence._2._1, noveltyTypeAndEvidence._2._2, broadcastReference));
-    }
-
-    private JavaRDD<VariantContext> dealWithSuspectedInvDup(final JavaRDD<AlignedContig> longReads,
-                                                            final Broadcast<ReferenceMultiSource> broadcastReference,
-                                                            final Logger toolLogger) {
-        final JavaRDD<AlignedContig> invDupSuspects =
-                longReads
-                        .filter(ForSimpleStrandSwitch::isLikelyInvertedDuplication).cache();
-
-        toolLogger.info(invDupSuspects.count() + " chimera indicating inverted duplication");
-        return null;
     }
 
     /**
@@ -124,23 +146,6 @@ final class ForSimpleStrandSwitch implements VariantDetectorFromLongReadAlignmen
 
         return Math.min(x - overlap, y - overlap) >= alignmentLengthThresholdInclusive;
     }
-
-    /**
-     * @return true iff the overlap of the two AI's made up the CA is strictly greater than half of any of the two AI's ref span.
-     */
-    @VisibleForTesting
-    static boolean isLikelyInvertedDuplication(final AlignedContig longRead) {
-        final SimpleInterval refSpanOne = longRead.alignmentIntervals.get(0).referenceSpan,
-                             refSpanTwo = longRead.alignmentIntervals.get(1).referenceSpan;
-
-        final int dummyChr = 1; // dummy number for chromosome to be used in constructing SVInterval, since we know the input CA has 2 AI and both map to the same chr
-        final SVInterval intOne = new SVInterval(dummyChr, refSpanOne.getStart(), refSpanOne.getEnd() + 1),
-                         intTwo = new SVInterval(dummyChr, refSpanTwo.getStart(), refSpanTwo.getEnd() + 1);
-
-        final int overlap = intOne.overlapLen(intTwo);
-        return 2 * overlap > Math.min(intOne.getLength(), intTwo.getLength());
-    }
-
 
     static final class INV55BND extends BreakEndVariantType {
 
@@ -255,5 +260,50 @@ final class ForSimpleStrandSwitch implements VariantDetectorFromLongReadAlignmen
         }
 
         return new Tuple2<>(novelAdjacency, new Tuple2<>(Arrays.asList(bkpt_1, bkpt_2), chimericAlignments));
+    }
+
+
+
+
+
+
+    // =================================================================================================================
+    private JavaRDD<VariantContext> dealWithSuspectedInvDup(final JavaRDD<AlignedContig> longReads,
+                                                            final Broadcast<ReferenceMultiSource> broadcastReference,
+                                                            final Logger toolLogger) {
+        final JavaRDD<AlignedContig> invDupSuspects =
+                longReads
+                        .filter(ForSimpleStrandSwitch::isLikelyInvertedDuplication).cache();
+
+        toolLogger.info(invDupSuspects.count() + " chimera indicating inverted duplication");
+
+
+        final JavaPairRDD<ChimericAlignment, byte[]> noHomologyOnRead =
+                invDupSuspects
+                        .filter(lr -> !hasHomology(lr))
+                        .mapToPair(ForSimpleStrandSwitch::convertAlignmentIntervalToChimericAlignment)
+                        .filter(Objects::nonNull).cache();
+
+        final JavaRDD<AlignedContig> withHomologyOnRead = invDupSuspects.filter(ForSimpleStrandSwitch::hasHomology);
+
+        return null;
+    }
+
+    private static boolean hasHomology(final AlignedContig longRead) {
+        return longRead.alignmentIntervals.get(0).endInAssembledContig < longRead.alignmentIntervals.get(1).startInAssembledContig;
+    }
+
+    private static void forInv55() {
+
+    }
+
+    /**
+     * Similar to {@link ChimericAlignment#involvesRefPositionSwitch(AlignmentInterval, AlignmentInterval)} except "equals" case.
+     * See which one is more appropriate.
+     */
+    static boolean involvesRefPositionSwitch(final AlignmentInterval regionWithLowerCoordOnContig,
+                                             final AlignmentInterval regionWithHigherCoordOnContig) {
+
+        return regionWithHigherCoordOnContig.referenceSpan.getStart() <= regionWithLowerCoordOnContig.referenceSpan.getStart();
     }
 }
