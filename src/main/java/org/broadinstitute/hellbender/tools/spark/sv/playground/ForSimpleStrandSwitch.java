@@ -248,10 +248,10 @@ final class ForSimpleStrandSwitch implements VariantDetectorFromLongReadAlignmen
         final NovelAdjacencyReferenceLocations novelAdjacency = noveltyAndEvidence._1;
         final Iterable<ChimericAlignment> chimericAlignments = noveltyAndEvidence._2;
         final BreakEndVariantType bkpt_1, bkpt_2;
-        if (novelAdjacency.endConnectionType == NovelAdjacencyReferenceLocations.EndConnectionType.FIVE_TO_FIVE) {
+        if (novelAdjacency.strandSwitch == StrandSwitch.FORWARD_TO_REVERSE) {
             bkpt_1 = new INV55BND(novelAdjacency, true, reference);
             bkpt_2 = new INV55BND(novelAdjacency, false, reference);
-        } else if (novelAdjacency.endConnectionType == NovelAdjacencyReferenceLocations.EndConnectionType.THREE_TO_THREE){
+        } else if (novelAdjacency.strandSwitch == StrandSwitch.REVERSE_TO_FORWARD){
             bkpt_1 = new INV33BND(novelAdjacency, true, reference);
             bkpt_2 = new INV33BND(novelAdjacency, false, reference);
         } else {

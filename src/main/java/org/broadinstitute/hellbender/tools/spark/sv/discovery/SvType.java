@@ -6,9 +6,6 @@ import org.broadinstitute.hellbender.tools.spark.sv.utils.GATKsvVCFConstants;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.broadinstitute.hellbender.tools.spark.sv.discovery.NovelAdjacencyReferenceLocations.EndConnectionType;
-import static org.broadinstitute.hellbender.tools.spark.sv.discovery.NovelAdjacencyReferenceLocations.EndConnectionType.*;
-
 /**
  * Various types of structural variations
  */
@@ -54,16 +51,16 @@ public abstract class SvType {
             super(getIDString(novelAdjacencyReferenceLocations),
                     Allele.create(createBracketedSymbAlleleString(GATKsvVCFConstants.SYMB_ALT_ALLELE_INV_IN_HEADER)),
                     novelAdjacencyReferenceLocations.leftJustifiedRightRefLoc.getStart() - novelAdjacencyReferenceLocations.leftJustifiedLeftRefLoc.getEnd(),
-                    Collections.singletonMap((novelAdjacencyReferenceLocations.endConnectionType == FIVE_TO_FIVE) ? GATKsvVCFConstants.INV55 : GATKsvVCFConstants.INV33, ""));
+                    Collections.singletonMap((novelAdjacencyReferenceLocations.strandSwitch == StrandSwitch.FORWARD_TO_REVERSE) ? GATKsvVCFConstants.INV55 : GATKsvVCFConstants.INV33, ""));
         }
 
         private static String getIDString(final NovelAdjacencyReferenceLocations novelAdjacencyReferenceLocations) {
             final String contig = novelAdjacencyReferenceLocations.leftJustifiedLeftRefLoc.getContig();
             final int start = novelAdjacencyReferenceLocations.leftJustifiedLeftRefLoc.getEnd();
             final int end = novelAdjacencyReferenceLocations.leftJustifiedRightRefLoc.getStart();
-            final EndConnectionType endConnectionType = novelAdjacencyReferenceLocations.endConnectionType;
+            final StrandSwitch strandSwitch = novelAdjacencyReferenceLocations.strandSwitch;
 
-            return (endConnectionType == FIVE_TO_FIVE ? GATKsvVCFConstants.INV55 : GATKsvVCFConstants.INV33) + GATKsvVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR +
+            return (strandSwitch == StrandSwitch.FORWARD_TO_REVERSE ? GATKsvVCFConstants.INV55 : GATKsvVCFConstants.INV33) + GATKsvVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR +
                     contig + GATKsvVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR + start + GATKsvVCFConstants.INTERVAL_VARIANT_ID_FIELD_SEPARATOR + end;
         }
     }

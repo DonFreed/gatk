@@ -68,10 +68,6 @@ public class ChimericAlignment {
 
     final List<String> insertionMappings;
 
-    enum StrandSwitch {
-        NO_SWITCH, FORWARD_TO_REVERSE, REVERSE_TO_FORWARD;
-    }
-
     public List<AlignmentInterval> getAlignmentIntervals() {
         return Arrays.asList(regionWithLowerCoordOnContig, regionWithHigherCoordOnContig);
     }
